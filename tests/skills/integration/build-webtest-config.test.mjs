@@ -37,6 +37,23 @@ export const steps = [
     validate: { script: 'meta-validate/scripts/meta-validate', flag: '-ObjectPath', path: 'Catalogs/Контрагенты' },
   },
 
+  // Подчинённый каталог КонтактныеЛица — для теста getFormState.navigation (subordinate-nav)
+  {
+    name: 'meta-compile: Справочник КонтактныеЛица (подчинённый Контрагентам)',
+    script: 'meta-compile/scripts/meta-compile',
+    input: {
+      type: 'Catalog', name: 'КонтактныеЛица',
+      codeLength: 9, descriptionLength: 100,
+      owners: ['Catalog.Контрагенты'],
+      attributes: [
+        { name: 'Должность', type: 'String', length: 100 },
+        { name: 'Телефон', type: 'String', length: 20 },
+      ],
+    },
+    args: { '-JsonPath': '{inputFile}', '-OutputDir': '{workDir}' },
+    validate: { script: 'meta-validate/scripts/meta-validate', flag: '-ObjectPath', path: 'Catalogs/КонтактныеЛица' },
+  },
+
   // Справочник Номенклатура — иерархический, все типы полей
   {
     name: 'meta-compile: Справочник Номенклатура',
@@ -213,6 +230,56 @@ export const steps = [
     },
     args: { '-JsonPath': '{inputFile}', '-OutputPath': '{workDir}/Catalogs/Контрагенты/Forms/ФормаЭлемента/Ext/Form.xml' },
     validate: { script: 'form-validate/scripts/form-validate', flag: '-FormPath', path: 'Catalogs/Контрагенты/Forms/ФормаЭлемента/Ext/Form.xml' },
+  },
+
+  // Форма элемента КонтактныеЛица + список — для подчинённого каталога
+  {
+    name: 'form-add: Форма элемента КонтактныеЛица',
+    script: 'form-add/scripts/form-add',
+    args: { '-ObjectPath': '{workDir}/Catalogs/КонтактныеЛица.xml', '-FormName': 'ФормаЭлемента' },
+  },
+  {
+    name: 'form-compile: Форма элемента КонтактныеЛица',
+    script: 'form-compile/scripts/form-compile',
+    input: {
+      title: 'Контактное лицо',
+      attributes: [
+        { name: 'Объект', type: 'CatalogObject.КонтактныеЛица', main: true },
+      ],
+      elements: [
+        { input: 'Владелец', path: 'Объект.Owner', title: 'Контрагент' },
+        { input: 'Наименование', path: 'Объект.Description', title: 'ФИО' },
+        { input: 'Должность', path: 'Объект.Должность', title: 'Должность' },
+        { input: 'Телефон', path: 'Объект.Телефон', title: 'Телефон' },
+      ],
+    },
+    args: { '-JsonPath': '{inputFile}', '-OutputPath': '{workDir}/Catalogs/КонтактныеЛица/Forms/ФормаЭлемента/Ext/Form.xml' },
+    validate: { script: 'form-validate/scripts/form-validate', flag: '-FormPath', path: 'Catalogs/КонтактныеЛица/Forms/ФормаЭлемента/Ext/Form.xml' },
+  },
+  {
+    name: 'form-add: Форма списка КонтактныеЛица',
+    script: 'form-add/scripts/form-add',
+    args: { '-ObjectPath': '{workDir}/Catalogs/КонтактныеЛица.xml', '-FormName': 'ФормаСписка', '-Purpose': 'List' },
+  },
+  {
+    name: 'form-compile: Форма списка КонтактныеЛица',
+    script: 'form-compile/scripts/form-compile',
+    input: {
+      title: 'Контактные лица',
+      attributes: [
+        { name: 'Список', type: 'DynamicList', main: true,
+          settings: { mainTable: 'Catalog.КонтактныеЛица', dynamicDataRead: true } },
+      ],
+      elements: [
+        { table: 'Список', path: 'Список', columns: [
+          { input: 'Description', path: 'Список.Description', title: 'ФИО' },
+          { input: 'Должность', path: 'Список.Должность', title: 'Должность' },
+          { input: 'Телефон', path: 'Список.Телефон', title: 'Телефон' },
+        ]},
+      ],
+    },
+    args: { '-JsonPath': '{inputFile}', '-OutputPath': '{workDir}/Catalogs/КонтактныеЛица/Forms/ФормаСписка/Ext/Form.xml' },
+    validate: { script: 'form-validate/scripts/form-validate', flag: '-FormPath', path: 'Catalogs/КонтактныеЛица/Forms/ФормаСписка/Ext/Form.xml' },
   },
 
   // Форма списка Контрагенты — для filterList тестов. КодКПП НЕ выводим
@@ -452,6 +519,7 @@ export const steps = [
       synonym: 'Склад',
       content: [
         'Catalog.Контрагенты',
+        'Catalog.КонтактныеЛица',
         'Catalog.Номенклатура',
         'Enum.ВидыНоменклатуры',
         'Enum.КатегорииЦен',
@@ -486,6 +554,7 @@ export const steps = [
       name: 'Администратор',
       objects: [
         'Catalog.Контрагенты: Read View Add Update Delete',
+        'Catalog.КонтактныеЛица: Read View Add Update Delete',
         'Catalog.Номенклатура: Read View Add Update Delete',
         'Document.ПриходнаяНакладная: Read View Add Update Delete Posting UnPosting',
         'InformationRegister.КурсыВалют: Read View Add Update Delete',
@@ -502,6 +571,7 @@ export const steps = [
     script: 'cf-edit/scripts/cf-edit',
     input: [
       { operation: 'add-childObject', value: 'Catalog.Контрагенты' },
+      { operation: 'add-childObject', value: 'Catalog.КонтактныеЛица' },
       { operation: 'add-childObject', value: 'Catalog.Номенклатура' },
       { operation: 'add-childObject', value: 'Enum.ВидыНоменклатуры' },
       { operation: 'add-childObject', value: 'Enum.КатегорииЦен' },
