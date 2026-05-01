@@ -177,7 +177,7 @@ export const steps = [
     script: 'meta-compile/scripts/meta-compile',
     input: {
       type: 'CommonModule', name: 'ОбщиеФункции',
-      server: true, clientManagedApplication: false,
+      server: true, serverCall: true, clientManagedApplication: false,
     },
     args: { '-JsonPath': '{inputFile}', '-OutputDir': '{workDir}' },
     validate: { script: 'meta-validate/scripts/meta-validate', flag: '-ObjectPath', path: 'CommonModules/ОбщиеФункции' },
@@ -290,6 +290,49 @@ export const steps = [
 Процедура ПриНачалеРаботыСистемы()
 \tОбщиеФункции.ЗаполнитьФикстурыЕслиНужно();
 КонецПроцедуры
+`,
+  },
+
+  // ClientApplicationInterface — раскладка панелей. Без этого файла секции
+  // рендерятся icon-only (без подписей) и web-test их не видит. Берём раскладку
+  // как в acc/erp: панель разделов + панель информации сверху, панель функций
+  // текущего раздела слева
+  {
+    name: 'writeFile: ClientApplicationInterface.xml',
+    writeFile: 'Ext/ClientApplicationInterface.xml',
+    content: `<?xml version="1.0" encoding="UTF-8"?>
+<ClientApplicationInterface xmlns="http://v8.1c.ru/8.2/managed-application/core" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="InterfaceLayouter">
+\t<top>
+\t\t<group id="00000001-0000-0000-0000-000000000001">
+\t\t\t<group>
+\t\t\t\t<panel id="00000002-0000-0000-0000-000000000002">
+\t\t\t\t\t<uuid>8e10648b-f52d-4ec2-b4dd-87de33778d95</uuid>
+\t\t\t\t</panel>
+\t\t\t</group>
+\t\t\t<group>
+\t\t\t\t<panel id="00000003-0000-0000-0000-000000000003">
+\t\t\t\t\t<uuid>cbab57f2-a0f3-4f0a-89ea-4cb19570ab75</uuid>
+\t\t\t\t\t<height>1</height>
+\t\t\t\t</panel>
+\t\t\t</group>
+\t\t</group>
+\t</top>
+\t<left>
+\t\t<group id="00000004-0000-0000-0000-000000000004">
+\t\t\t<group>
+\t\t\t\t<panel id="00000005-0000-0000-0000-000000000005">
+\t\t\t\t\t<uuid>b553047f-c9aa-4157-978d-448ecad24248</uuid>
+\t\t\t\t</panel>
+\t\t\t</group>
+\t\t</group>
+\t</left>
+\t<panelDef id="b553047f-c9aa-4157-978d-448ecad24248"/>
+\t<panelDef id="13322b22-3960-4d68-93a6-fe2dd7f28ca3"/>
+\t<panelDef id="c933ac92-92cd-459d-81cc-e0c8a83ced99"/>
+\t<panelDef id="cbab57f2-a0f3-4f0a-89ea-4cb19570ab75"/>
+\t<panelDef id="b2735bd3-d822-4430-ba59-c9e869693b24"/>
+\t<panelDef id="8e10648b-f52d-4ec2-b4dd-87de33778d95"/>
+</ClientApplicationInterface>
 `,
   },
 
