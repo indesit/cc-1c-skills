@@ -51,6 +51,8 @@ export const steps = [
         { name: 'ДатаПоступления', type: 'Date' },
         { name: 'Комментарий', type: 'String' },
         { name: 'ЕдиницаИзмерения', type: 'String', length: 10 },
+        { name: 'ВидНоменклатуры', type: 'EnumRef.ВидыНоменклатуры' },
+        { name: 'КатегорияЦены', type: 'EnumRef.КатегорииЦен' },
       ],
       fillChecking: { 'Description': 'ShowError' },
     },
@@ -70,6 +72,18 @@ export const steps = [
     validate: { script: 'meta-validate/scripts/meta-validate', flag: '-ObjectPath', path: 'Enums/ВидыНоменклатуры' },
   },
 
+  // Перечисление КатегорииЦен — для будущего radio-button теста (fillFields branch #3)
+  {
+    name: 'meta-compile: Перечисление КатегорииЦен',
+    script: 'meta-compile/scripts/meta-compile',
+    input: {
+      type: 'Enum', name: 'КатегорииЦен',
+      values: ['Розничная', 'Оптовая', 'Закупочная'],
+    },
+    args: { '-JsonPath': '{inputFile}', '-OutputDir': '{workDir}' },
+    validate: { script: 'meta-validate/scripts/meta-validate', flag: '-ObjectPath', path: 'Enums/КатегорииЦен' },
+  },
+
   // Документ ПриходнаяНакладная — шапка + ТЧ
   {
     name: 'meta-compile: Документ ПриходнаяНакладная',
@@ -77,17 +91,18 @@ export const steps = [
     input: {
       type: 'Document', name: 'ПриходнаяНакладная',
       attributes: [
-        { name: 'Контрагент', type: 'String', length: 100 },
+        { name: 'Контрагент', type: 'CatalogRef.Контрагенты' },
         { name: 'Склад', type: 'String', length: 50 },
         { name: 'Комментарий', type: 'String', length: 200 },
       ],
       tabularSections: [{
         name: 'Товары',
         attributes: [
-          { name: 'Номенклатура', type: 'String', length: 150 },
+          { name: 'Номенклатура', type: 'CatalogRef.Номенклатура' },
           { name: 'Количество', type: 'Number', length: 15, precision: 3 },
           { name: 'Цена', type: 'Number', length: 15, precision: 2 },
           { name: 'Сумма', type: 'Number', length: 15, precision: 2 },
+          { name: 'Согласовано', type: 'Boolean' },
         ],
       }],
     },
@@ -195,7 +210,9 @@ export const steps = [
           { page: 'Основное', children: [
             { input: 'Наименование', path: 'Объект.Description', title: 'Наименование' },
             { input: 'Артикул', path: 'Объект.Артикул', title: 'Артикул' },
+            { input: 'ВидНоменклатуры', path: 'Объект.ВидНоменклатуры', title: 'Вид номенклатуры' },
             { input: 'Цена', path: 'Объект.Цена', title: 'Цена' },
+            { input: 'КатегорияЦены', path: 'Объект.КатегорияЦены', title: 'Категория цены' },
             { input: 'Активен', path: 'Объект.Активен', title: 'Активен' },
             { input: 'ДатаПоступления', path: 'Объект.ДатаПоступления', title: 'Дата поступления' },
           ]},
@@ -228,11 +245,12 @@ export const steps = [
         { input: 'Контрагент', path: 'Объект.Контрагент', title: 'Контрагент' },
         { input: 'Склад', path: 'Объект.Склад', title: 'Склад' },
         { input: 'Комментарий', path: 'Объект.Комментарий', title: 'Комментарий' },
-        { table: 'Товары', path: 'Объект.Товары', title: 'Товары', columns: [
+        { table: 'Товары', path: 'Объект.Товары', title: 'Товары', changeRowSet: true, columns: [
           { input: 'Номенклатура', path: 'Объект.Товары.Номенклатура', title: 'Номенклатура' },
           { input: 'Количество', path: 'Объект.Товары.Количество', title: 'Количество' },
           { input: 'Цена', path: 'Объект.Товары.Цена', title: 'Цена' },
           { input: 'Сумма', path: 'Объект.Товары.Сумма', title: 'Сумма' },
+          { check: 'Согласовано', path: 'Объект.Товары.Согласовано', title: 'Согласовано' },
         ]},
       ],
     },
@@ -271,6 +289,8 @@ export const steps = [
       content: [
         'Catalog.Контрагенты',
         'Catalog.Номенклатура',
+        'Enum.ВидыНоменклатуры',
+        'Enum.КатегорииЦен',
         'Document.ПриходнаяНакладная',
         'Report.ОстаткиТоваров',
       ],
@@ -319,6 +339,7 @@ export const steps = [
       { operation: 'add-childObject', value: 'Catalog.Контрагенты' },
       { operation: 'add-childObject', value: 'Catalog.Номенклатура' },
       { operation: 'add-childObject', value: 'Enum.ВидыНоменклатуры' },
+      { operation: 'add-childObject', value: 'Enum.КатегорииЦен' },
       { operation: 'add-childObject', value: 'Document.ПриходнаяНакладная' },
       { operation: 'add-childObject', value: 'InformationRegister.КурсыВалют' },
       { operation: 'add-childObject', value: 'Constant.ОсновнаяВалюта' },
