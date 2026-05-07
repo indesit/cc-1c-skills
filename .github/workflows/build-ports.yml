@@ -206,6 +206,15 @@ jobs:
           sed -e "s|{{PLUGIN_NAME}}|${PLUGIN_NAME}|g" \
             .github/templates/claude-plugin.json.tmpl > build/.claude-plugin/plugin.json
 
+      - name: Add UTF-8 BOM to SKILL.md (Codex reads Cyrillic as CP1252 without BOM)
+        if: matrix.platform == 'codex'
+        run: |
+          find build -name 'SKILL.md' -print0 | while IFS= read -r -d '' f; do
+            if ! head -c 3 "$f" | od -An -tx1 | tr -d ' \n' | grep -q '^efbbbf'; then
+              { printf '\xef\xbb\xbf'; cat "$f"; } > "$f.tmp" && mv "$f.tmp" "$f"
+            fi
+          done
+
       - name: Copy LICENSE
         run: cp LICENSE build/LICENSE
 
