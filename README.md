@@ -16,6 +16,13 @@
 └── ...
 ```
 
+Или установите как плагин Claude Code:
+
+```
+/plugin marketplace add https://github.com/Nikolay-Shirokov/cc-1c-skills
+/plugin install 1c-skills@cc-1c-skills
+```
+
 Или используйте скрипт установки:
 
 ```bash
