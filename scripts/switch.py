@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# switch.py v1.5 — Переключение навыков 1С между AI-платформами и рантаймами
+# switch.py v1.6 — Переключение навыков 1С между AI-платформами и рантаймами
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 """
 Копирует (или создаёт ссылки на) навыки из .claude/skills/ на другие AI-платформы
@@ -63,8 +63,34 @@ GITIGNORE_RECOMMENDATIONS = [
 # ---------------------------------------------------------------------------
 # Capture optional surrounding quote (group 'q') and bare path (group 'path').
 # Path matches non-whitespace non-quote chars to support ${CLAUDE_SKILL_DIR}/...
-RX_PS = re.compile(r'powershell\.exe\s+(?:-NoProfile\s+)?-File\s+(?P<q>["\']?)(?P<path>[^"\s]+?)\.ps1(?P=q)?')
+# Optional -ExecutionPolicy <value> between -NoProfile and -File (used for codex target).
+RX_PS = re.compile(
+    r'powershell\.exe\s+'
+    r'(?:-NoProfile\s+)?'
+    r'(?:-ExecutionPolicy\s+\S+\s+)?'
+    r'-File\s+(?P<q>["\']?)(?P<path>[^"\s]+?)\.ps1(?P=q)?'
+)
 RX_PY = re.compile(r"python\s+(?P<q>[\"']?)(?P<path>[^\"\s]+?)\.py(?P=q)?")
+
+# Платформы, требующие -ExecutionPolicy Bypass (Codex запускает powershell как
+# login-shell, профиль грузится и упирается в Restricted policy).
+PS_BYPASS_PLATFORMS = {'codex'}
+
+
+def emit_ps_invocation(path, quote, platform):
+    """Build canonical powershell.exe invocation for a target platform."""
+    ep = ' -ExecutionPolicy Bypass' if platform in PS_BYPASS_PLATFORMS else ''
+    return f"powershell.exe -NoProfile{ep} -File {quote}{path}.ps1{quote}"
+
+
+def normalize_ps_invocation(content, platform):
+    """Re-emit existing powershell.exe ...ps1 invocations with platform flags.
+
+    Idempotent: matches both with and without -ExecutionPolicy in source.
+    """
+    def repl(m):
+        return emit_ps_invocation(m.group('path'), m.group('q'), platform)
+    return RX_PS.sub(repl, content)
 
 
 # ---------------------------------------------------------------------------
@@ -221,8 +247,12 @@ def rewrite_paths(content, platform, target_prefix, skill_name):
     return content
 
 
-def switch_runtime_content(content, target_runtime):
-    """Switch runtime invocations in .md content. Returns (new_content, switched)."""
+def switch_runtime_content(content, target_runtime, platform='claude-code'):
+    """Switch runtime invocations in .md content. Returns (new_content, switched).
+
+    Platform controls flags on emitted powershell invocations
+    (codex requires -ExecutionPolicy Bypass).
+    """
     if target_runtime == 'python':
         def to_py(m):
             q = m.group('q')
@@ -230,8 +260,7 @@ def switch_runtime_content(content, target_runtime):
         new = RX_PS.sub(to_py, content)
     elif target_runtime == 'powershell':
         def to_ps(m):
-            q = m.group('q')
-            return f"powershell.exe -NoProfile -File {q}{m.group('path')}.ps1{q}"
+            return emit_ps_invocation(m.group('path'), m.group('q'), platform)
         new = RX_PY.sub(to_ps, content)
     else:
         return content, False
@@ -354,9 +383,13 @@ def cmd_install(platform, runtime, project_dir):
             # where target runtime is not available)
             if not skip_runtime:
                 if runtime == 'python':
-                    new_content, _ = switch_runtime_content(new_content, 'python')
+                    new_content, _ = switch_runtime_content(new_content, 'python', platform)
                 elif runtime == 'powershell':
-                    new_content, _ = switch_runtime_content(new_content, 'powershell')
+                    new_content, _ = switch_runtime_content(new_content, 'powershell', platform)
+
+            # Normalize any remaining powershell invocations with platform flags
+            # (covers skip_runtime=True case where source PS commands stayed)
+            new_content = normalize_ps_invocation(new_content, platform)
 
             if new_content != content:
                 with open(md_path, 'w', encoding='utf-8') as f:
@@ -491,14 +524,14 @@ def cmd_switch_runtime(runtime, project_dir):
         # Skip runtime conversion for single-runtime skills where
         # target files don't exist (e.g. img-grid has only .py)
         cur_rt = classify_skill_runtime(skill_path)
-        missing = check_missing_files(skill_path, runtime, repo_root())
+        missing = check_missing_files(skill_path, runtime, project_dir)
         skip_runtime = bool(missing) and (
             (runtime == 'python' and cur_rt in ('ps', 'none'))
             or (runtime == 'powershell' and cur_rt in ('py', 'none'))
         )
 
         info, warnings = collect_runtime_messages(
-            skill_name, skill_path, runtime, repo_root())
+            skill_name, skill_path, runtime, project_dir)
         all_info.extend(info)
         all_warnings.extend(warnings)
 
@@ -509,7 +542,9 @@ def cmd_switch_runtime(runtime, project_dir):
             with open(md_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            new_content, changed = switch_runtime_content(content, runtime)
+            new_content, _ = switch_runtime_content(content, runtime, platform_name)
+            new_content = normalize_ps_invocation(new_content, platform_name)
+            changed = new_content != content
 
             if changed:
                 with open(md_path, 'w', encoding='utf-8') as f:
