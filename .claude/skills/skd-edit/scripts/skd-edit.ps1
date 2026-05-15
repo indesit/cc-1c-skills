@@ -1,4 +1,4 @@
-﻿# skd-edit v1.15 — Atomic 1C DCS editor
+﻿# skd-edit v1.16 — Atomic 1C DCS editor
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[Parameter(Mandatory)]
@@ -2472,6 +2472,12 @@ switch ($Operation) {
 		}
 
 		foreach ($val in $values) {
+			$once = $false
+			if ($val -match '@once\b') {
+				$once = $true
+				$val = ($val -replace '\s*@once\b', '').Trim()
+			}
+
 			$sepIdx = $val.IndexOf(" => ")
 			if ($sepIdx -lt 0) {
 				Write-Error "patch-query value must contain ' => ' separator: old => new"
@@ -2480,12 +2486,20 @@ switch ($Operation) {
 			$oldStr = $val.Substring(0, $sepIdx)
 			$newStr = $val.Substring($sepIdx + 4)
 			$queryText = $queryEl.InnerText
-			if (-not $queryText.Contains($oldStr)) {
+
+			$count = ([regex]::Matches($queryText, [regex]::Escape($oldStr))).Count
+			if ($count -eq 0) {
 				Write-Error "Substring not found in query of dataset '$dsName': $oldStr"
 				exit 1
 			}
+			if ($once -and $count -ne 1) {
+				Write-Error "@once: expected 1 occurrence of '$oldStr' in dataset '$dsName', found $count"
+				exit 1
+			}
+
 			$queryEl.InnerText = $queryText.Replace($oldStr, $newStr)
-			Write-Host "[OK] Query patched in dataset `"$dsName`": replaced '$oldStr'"
+			$suffix = if ($once) { " (1 occurrence)" } else { " ($count occurrence(s))" }
+			Write-Host "[OK] Query patched in dataset `"$dsName`": replaced '$oldStr'$suffix"
 		}
 	}
 

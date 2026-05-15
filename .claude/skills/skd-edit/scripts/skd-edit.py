@@ -1,4 +1,4 @@
-# skd-edit v1.15 — Atomic 1C DCS editor (Python port)
+# skd-edit v1.16 — Atomic 1C DCS editor (Python port)
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import os
@@ -2064,6 +2064,11 @@ elif operation == "patch-query":
         print(f"No <query> element found in dataset '{ds_name}'", file=sys.stderr)
         sys.exit(1)
     for val in values:
+        once = False
+        if re.search(r'@once\b', val):
+            once = True
+            val = re.sub(r'\s*@once\b', '', val).strip()
+
         sep_idx = val.find(" => ")
         if sep_idx < 0:
             print("patch-query value must contain ' => ' separator: old => new", file=sys.stderr)
@@ -2071,11 +2076,18 @@ elif operation == "patch-query":
         old_str = val[:sep_idx]
         new_str = val[sep_idx + 4:]
         query_text = query_el.text or ""
-        if old_str not in query_text:
+
+        count = query_text.count(old_str)
+        if count == 0:
             print(f"Substring not found in query of dataset '{ds_name}': {old_str}", file=sys.stderr)
             sys.exit(1)
+        if once and count != 1:
+            print(f"@once: expected 1 occurrence of '{old_str}' in dataset '{ds_name}', found {count}", file=sys.stderr)
+            sys.exit(1)
+
         query_el.text = query_text.replace(old_str, new_str)
-        print(f'[OK] Query patched in dataset "{ds_name}": replaced \'{old_str}\'')
+        suffix = " (1 occurrence)" if once else f" ({count} occurrence(s))"
+        print(f'[OK] Query patched in dataset "{ds_name}": replaced \'{old_str}\'{suffix}')
 
 elif operation == "set-outputParameter":
     settings = resolve_variant_settings()
