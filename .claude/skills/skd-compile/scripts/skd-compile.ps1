@@ -1,4 +1,4 @@
-﻿# skd-compile v1.25 — Compile 1C DCS from JSON
+﻿# skd-compile v1.26 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[string]$DefinitionFile,
@@ -143,6 +143,7 @@ $script:typeSynonyms["строка"] = "string"
 $script:typeSynonyms["булево"] = "boolean"
 $script:typeSynonyms["дата"] = "date"
 $script:typeSynonyms["датавремя"] = "dateTime"
+$script:typeSynonyms["время"] = "time"
 $script:typeSynonyms["стандартныйпериод"] = "StandardPeriod"
 # English canonical (lowercase for lookup)
 $script:typeSynonyms["bool"] = "boolean"
@@ -219,13 +220,14 @@ function Emit-SingleValueType {
 		return
 	}
 
-	# string or string(N)
-	if ($typeStr -match '^string(\((\d+)\))?$') {
+	# string, string(N), string(N,fix) — fix → AllowedLength=Fixed
+	if ($typeStr -match '^string(\((\d+)(,(fix|fixed))?\))?$') {
 		$len = if ($Matches[2]) { $Matches[2] } else { "0" }
+		$al = if ($Matches[4]) { "Fixed" } else { "Variable" }
 		X "$indent<v8:Type>xs:string</v8:Type>"
 		X "$indent<v8:StringQualifiers>"
 		X "$indent`t<v8:Length>$len</v8:Length>"
-		X "$indent`t<v8:AllowedLength>Variable</v8:AllowedLength>"
+		X "$indent`t<v8:AllowedLength>$al</v8:AllowedLength>"
 		X "$indent</v8:StringQualifiers>"
 		return
 	}
@@ -253,11 +255,12 @@ function Emit-SingleValueType {
 		return
 	}
 
-	# date / dateTime
-	if ($typeStr -match '^(date|dateTime)$') {
+	# date / dateTime / time — all use xs:dateTime, differ only in DateFractions
+	if ($typeStr -match '^(date|dateTime|time)$') {
 		$fractions = switch ($typeStr) {
 			"date"     { "Date" }
 			"dateTime" { "DateTime" }
+			"time"     { "Time" }
 		}
 		X "$indent<v8:Type>xs:dateTime</v8:Type>"
 		X "$indent<v8:DateQualifiers>"
@@ -996,7 +999,15 @@ function Emit-SingleParam {
 
 	# Value — for valueListAllowed params Designer omits <value> when empty
 	$vla = [bool]$parsed.valueListAllowed
-	Emit-ParamValue -type $parsed.type -val $parsed.value -indent "`t`t" -valueListAllowed $vla
+	if ($parsed.type -is [array] -or $parsed.type -is [System.Collections.IList]) {
+		# Composite type — Designer writes xsi:nil for any empty composite;
+		# non-empty composite values are uncommon and would need per-type tagging.
+		if (Test-EmptyValue $parsed.value) {
+			if (-not $vla) { X "`t`t<value xsi:nil=`"true`"/>" }
+		}
+	} else {
+		Emit-ParamValue -type $parsed.type -val $parsed.value -indent "`t`t" -valueListAllowed $vla
+	}
 
 	# Hidden implies useRestriction=true + availableAsField=false
 	if ($parsed.hidden -eq $true) {
@@ -1073,9 +1084,19 @@ function Emit-Parameters {
 		if ($p -is [string]) {
 			$parsed = Parse-ParamShorthand $p
 		} else {
+			# Composite type: ["string(10,fix)", "CatalogRef.X"] → array of resolved
+			# strings; emit-valueType handles arrays, empty value falls through to nil.
+			$resolvedType = ""
+			if ($p.type) {
+				if ($p.type -is [array] -or $p.type -is [System.Collections.IList]) {
+					$resolvedType = @($p.type | ForEach-Object { Resolve-TypeStr "$_" })
+				} else {
+					$resolvedType = Resolve-TypeStr "$($p.type)"
+				}
+			}
 			$parsed = @{
 				name = "$($p.name)"
-				type = if ($p.type) { Resolve-TypeStr "$($p.type)" } else { "" }
+				type = $resolvedType
 				value = $p.value
 				autoDates = $false
 			}
@@ -1148,7 +1169,7 @@ function Emit-EmptyValue {
 		X "$indent</${pf}value>"
 	} elseif ($t -match '^string') {
 		X "$indent<${pf}value xsi:type=`"xs:string`"/>"
-	} elseif ($t -match '^date') {
+	} elseif ($t -match '^(date|time)') {
 		X "$indent<${pf}value xsi:type=`"xs:dateTime`">0001-01-01T00:00:00</${pf}value>"
 	} elseif ($t -match '^decimal') {
 		X "$indent<${pf}value xsi:type=`"xs:decimal`">0</${pf}value>"

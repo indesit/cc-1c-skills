@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# skd-compile v1.25 — Compile 1C DCS from JSON
+# skd-compile v1.26 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import json
@@ -74,6 +74,7 @@ TYPE_SYNONYMS = {
     "\u0431\u0443\u043b\u0435\u0432\u043e": "boolean",
     "\u0434\u0430\u0442\u0430": "date",
     "\u0434\u0430\u0442\u0430\u0432\u0440\u0435\u043c\u044f": "dateTime",
+    "\u0432\u0440\u0435\u043c\u044f": "time",
     "\u0441\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u044b\u0439\u043f\u0435\u0440\u0438\u043e\u0434": "StandardPeriod",
     # English canonical (lowercase)
     "bool": "boolean",
@@ -148,14 +149,15 @@ def emit_single_value_type(lines, type_str, indent):
         lines.append(f'{indent}<v8:Type>xs:boolean</v8:Type>')
         return
 
-    # string or string(N)
-    m = re.match(r'^string(\((\d+)\))?$', type_str)
+    # string, string(N), string(N,fix) — fix → AllowedLength=Fixed
+    m = re.match(r'^string(\((\d+)(,(fix|fixed))?\))?$', type_str)
     if m:
         length = m.group(2) if m.group(2) else '0'
+        al = 'Fixed' if m.group(4) else 'Variable'
         lines.append(f'{indent}<v8:Type>xs:string</v8:Type>')
         lines.append(f'{indent}<v8:StringQualifiers>')
         lines.append(f'{indent}\t<v8:Length>{length}</v8:Length>')
-        lines.append(f'{indent}\t<v8:AllowedLength>Variable</v8:AllowedLength>')
+        lines.append(f'{indent}\t<v8:AllowedLength>{al}</v8:AllowedLength>')
         lines.append(f'{indent}</v8:StringQualifiers>')
         return
 
@@ -181,10 +183,10 @@ def emit_single_value_type(lines, type_str, indent):
         lines.append(f'{indent}</v8:NumberQualifiers>')
         return
 
-    # date / dateTime
-    m = re.match(r'^(date|dateTime)$', type_str)
+    # date / dateTime / time — all use xs:dateTime, differ only in DateFractions
+    m = re.match(r'^(date|dateTime|time)$', type_str)
     if m:
-        fractions_map = {'date': 'Date', 'dateTime': 'DateTime'}
+        fractions_map = {'date': 'Date', 'dateTime': 'DateTime', 'time': 'Time'}
         fractions = fractions_map[type_str]
         lines.append(f'{indent}<v8:Type>xs:dateTime</v8:Type>')
         lines.append(f'{indent}<v8:DateQualifiers>')
@@ -827,7 +829,7 @@ def emit_empty_value(lines, type_str, indent, tag_prefix='', value_list_allowed=
         lines.append(f'{indent}</{pf}value>')
     elif re.match(r'^string', t):
         lines.append(f'{indent}<{pf}value xsi:type="xs:string"/>')
-    elif re.match(r'^date', t):
+    elif re.match(r'^(date|time)', t):
         lines.append(f'{indent}<{pf}value xsi:type="xs:dateTime">0001-01-01T00:00:00</{pf}value>')
     elif re.match(r'^decimal', t):
         lines.append(f'{indent}<{pf}value xsi:type="xs:decimal">0</{pf}value>')
@@ -898,7 +900,15 @@ def emit_single_param(lines, p, parsed):
 
     # Value — for valueListAllowed params Designer omits <value> when empty
     vla = bool(parsed.get('valueListAllowed'))
-    emit_param_value(lines, parsed.get('type', ''), parsed.get('value'), '\t\t', vla)
+    p_type = parsed.get('type', '')
+    if isinstance(p_type, (list, tuple)):
+        # Composite type — Designer writes xsi:nil for any empty composite;
+        # non-empty composite values are uncommon and would need per-type tagging.
+        if is_empty_value(parsed.get('value')):
+            if not vla:
+                lines.append('\t\t<value xsi:nil="true"/>')
+    else:
+        emit_param_value(lines, p_type, parsed.get('value'), '\t\t', vla)
 
     # Hidden implies useRestriction=true + availableAsField=false
     if parsed.get('hidden') is True:
@@ -971,9 +981,18 @@ def emit_parameters(lines, defn):
         if isinstance(p, str):
             parsed = parse_param_shorthand(p)
         else:
+            # Composite type: ["string(10,fix)", "CatalogRef.X"] → list of resolved
+            # strings; emit_value_type handles lists, empty value falls through to nil.
+            raw_type = p.get('type')
+            if isinstance(raw_type, (list, tuple)):
+                resolved_type = [resolve_type_str(str(t)) for t in raw_type]
+            elif raw_type:
+                resolved_type = resolve_type_str(str(raw_type))
+            else:
+                resolved_type = ''
             parsed = {
                 'name': str(p.get('name', '')),
-                'type': resolve_type_str(str(p['type'])) if p.get('type') else '',
+                'type': resolved_type,
                 'value': p.get('value'),
                 'autoDates': False,
             }
