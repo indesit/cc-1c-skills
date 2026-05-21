@@ -1,22 +1,18 @@
 {
-    "dataSets":  [
-                     {
-                         "name":  "Тест",
-                         "query":  "ВЫБРАТЬ * ИЗ Справочник.Сотрудники",
-                         "fields":  [
-                                        "Поле: string"
-                                    ]
-                     }
-                 ],
-    "templates":  [
-                      {
-                          "name":  "Заголовок",
-                          "style":  "myHeader",
-                          "rows":  [
-                                       [
-                                           "A"
-                                       ]
-                                   ]
-                      }
-                  ]
+  "dataSets": [
+    {
+      "name": "Тест",
+      "query": "ВЫБРАТЬ * ИЗ Справочник.Сотрудники",
+      "fields": ["Поле: string"]
+    }
+  ],
+  "templates": [
+    {
+      "name": "Заголовок",
+      "style": "myHeader",
+      "rows": [
+        ["A"]
+      ]
+    }
+  ]
 }

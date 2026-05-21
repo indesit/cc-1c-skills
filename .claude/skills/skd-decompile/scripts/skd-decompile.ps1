@@ -1,4 +1,4 @@
-﻿# skd-decompile v0.18 — Decompile 1C DCS Template.xml to JSON DSL (draft)
+﻿# skd-decompile v0.19 — Decompile 1C DCS Template.xml to JSON DSL (draft)
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[Parameter(Mandatory)]
@@ -106,6 +106,88 @@ function New-Sentinel {
 }
 
 # --- 3. Helpers ---
+
+# Custom JSON serializer — компактный, 2-пробельный indent, массивы примитивов inline.
+# В отличие от ConvertTo-Json (PS5.1):
+#   - не выравнивает ключи объекта по самому длинному
+#   - не разворачивает массивы примитивов на отдельные строки
+#   - кириллица в UTF-8 (без \uXXXX-escapes)
+function Convert-StringToJsonLiteral {
+	param([string]$s)
+	if ($null -eq $s) { return 'null' }
+	$sb = New-Object System.Text.StringBuilder
+	[void]$sb.Append('"')
+	foreach ($ch in $s.ToCharArray()) {
+		$code = [int]$ch
+		if ($code -eq 0x22)     { [void]$sb.Append('\"') }
+		elseif ($code -eq 0x5C) { [void]$sb.Append('\\') }
+		elseif ($code -eq 0x08) { [void]$sb.Append('\b') }
+		elseif ($code -eq 0x09) { [void]$sb.Append('\t') }
+		elseif ($code -eq 0x0A) { [void]$sb.Append('\n') }
+		elseif ($code -eq 0x0C) { [void]$sb.Append('\f') }
+		elseif ($code -eq 0x0D) { [void]$sb.Append('\r') }
+		elseif ($code -lt 0x20) { [void]$sb.AppendFormat('\u{0:x4}', $code) }
+		else { [void]$sb.Append($ch) }
+	}
+	[void]$sb.Append('"')
+	return $sb.ToString()
+}
+
+function ConvertTo-CompactJson {
+	param($obj, [int]$depth = 0, [string]$indentUnit = '  ')
+	$indent = $indentUnit * $depth
+	$childIndent = $indentUnit * ($depth + 1)
+
+	if ($null -eq $obj) { return 'null' }
+	if ($obj -is [bool]) { if ($obj) { return 'true' } else { return 'false' } }
+	if ($obj -is [string]) { return (Convert-StringToJsonLiteral $obj) }
+	if ($obj -is [int] -or $obj -is [long]) { return "$obj" }
+	if ($obj -is [double] -or $obj -is [single] -or $obj -is [decimal]) {
+		# .NET ToString с invariant culture, чтобы не было запятой
+		return ([System.Convert]::ToString($obj, [System.Globalization.CultureInfo]::InvariantCulture))
+	}
+	# Hashtable / OrderedDictionary / PSCustomObject — объект
+	if ($obj -is [System.Collections.IDictionary]) {
+		$keys = @($obj.Keys)
+		if ($keys.Count -eq 0) { return '{}' }
+		$parts = @()
+		foreach ($k in $keys) {
+			$val = ConvertTo-CompactJson -obj $obj[$k] -depth ($depth + 1) -indentUnit $indentUnit
+			$parts += "$childIndent$(Convert-StringToJsonLiteral "$k"): $val"
+		}
+		return "{`n" + ($parts -join ",`n") + "`n$indent}"
+	}
+	if ($obj -is [System.Management.Automation.PSCustomObject]) {
+		$props = @($obj.PSObject.Properties)
+		if ($props.Count -eq 0) { return '{}' }
+		$parts = @()
+		foreach ($p in $props) {
+			$val = ConvertTo-CompactJson -obj $p.Value -depth ($depth + 1) -indentUnit $indentUnit
+			$parts += "$childIndent$(Convert-StringToJsonLiteral "$($p.Name)"): $val"
+		}
+		return "{`n" + ($parts -join ",`n") + "`n$indent}"
+	}
+	# Array / IList
+	if ($obj -is [array] -or $obj -is [System.Collections.IList]) {
+		$items = @($obj)
+		if ($items.Count -eq 0) { return '[]' }
+		$allPrimitive = $true
+		foreach ($it in $items) {
+			if ($it -is [System.Collections.IDictionary] -or $it -is [System.Management.Automation.PSCustomObject] -or $it -is [array] -or $it -is [System.Collections.IList]) {
+				$allPrimitive = $false
+				break
+			}
+		}
+		if ($allPrimitive) {
+			$parts = @($items | ForEach-Object { ConvertTo-CompactJson -obj $_ -depth $depth -indentUnit $indentUnit })
+			return '[' + ($parts -join ', ') + ']'
+		}
+		$parts = @($items | ForEach-Object { "$childIndent$(ConvertTo-CompactJson -obj $_ -depth ($depth + 1) -indentUnit $indentUnit)" })
+		return "[`n" + ($parts -join ",`n") + "`n$indent]"
+	}
+	# Fallback
+	return (Convert-StringToJsonLiteral "$obj")
+}
 
 function Get-Text {
 	param($node, [string]$xpath)
@@ -489,25 +571,26 @@ function Build-TotalField {
 	param($tfNode)
 	$dataPath = Get-Text $tfNode "r:dataPath"
 	$expression = Get-Text $tfNode "r:expression"
-	# Detect Func(<dataPath>) → shorthand "name: Func"
-	if ($expression -match '^(\w+)\(([^)]*)\)$') {
-		$func = $matches[1]
-		$inner = $matches[2].Trim()
-		if ($inner -eq $dataPath) {
-			return "$dataPath`: $func"
-		}
-		# "name: Func(expr)" form — also a valid shorthand
-		return "$dataPath`: $func($inner)"
-	}
-	# group attachment via groupItem — Ring 2 / object form
 	$groupNodes = $tfNode.SelectNodes("r:group", $ns)
-	$obj = [ordered]@{ dataPath = $dataPath; expression = $expression }
-	if ($groupNodes -and $groupNodes.Count -gt 0) {
-		$groups = @()
-		foreach ($g in $groupNodes) { $groups += $g.InnerText }
-		$obj['group'] = $groups
+	$hasGroups = $groupNodes -and $groupNodes.Count -gt 0
+
+	# Object form — только если есть group или expression многострочный
+	if ($hasGroups -or ($expression -match "[`r`n]")) {
+		$obj = [ordered]@{ dataPath = $dataPath; expression = $expression }
+		if ($hasGroups) {
+			$groups = @()
+			foreach ($g in $groupNodes) { $groups += $g.InnerText }
+			$obj['group'] = $groups
+		}
+		return $obj
 	}
-	return $obj
+
+	# Shorthand: "Func(dataPath)" → "name: Func" (агрегат с очевидным аргументом)
+	if ($expression -match '^(\w+)\((\w+)\)$' -and $matches[2] -eq $dataPath) {
+		return "$dataPath`: $($matches[1])"
+	}
+	# Любой другой однострочный expression → "name: expression" (compile берёт всё после ":" как expression)
+	return "$dataPath`: $expression"
 }
 
 # Detect StandardPeriod variant from <value> node
@@ -875,8 +958,7 @@ function Save-UserStyles {
 		$out[$name] = $script:customStylesAccumulator[$name]
 	}
 	if ($out.Count -eq 0) { return }
-	$json = $out | ConvertTo-Json -Depth 8
-	$json = [regex]::Replace($json, '\\u([0-9a-fA-F]{4})', { param($m) [char][int]("0x" + $m.Groups[1].Value) })
+	$json = ConvertTo-CompactJson -obj $out
 	$enc = New-Object System.Text.UTF8Encoding($false)
 	[System.IO.File]::WriteAllText($stylesPath, $json, $enc)
 	[Console]::Error.WriteLine("Saved skd-styles.json (custom styles: $($script:customStylesAccumulator.Count))")
@@ -1878,13 +1960,7 @@ if ($settingsVariants.Count -gt 0) { $out['settingsVariants'] = $settingsVariant
 
 # --- 7. Serialize ---
 
-$json = $out | ConvertTo-Json -Depth 32
-
-# Unescape \uXXXX → UTF-8 literals
-$json = [regex]::Replace($json, '\\u([0-9a-fA-F]{4})', {
-	param($m)
-	[char][int]("0x" + $m.Groups[1].Value)
-})
+$json = ConvertTo-CompactJson -obj $out
 
 if ($OutputPath) {
 	$enc = New-Object System.Text.UTF8Encoding($false)
