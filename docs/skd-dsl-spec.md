@@ -511,13 +511,14 @@ XML-маппинг — по `<group>` на каждый элемент:
 "selection": [
   "Наименование",
   { "field": "Количество", "title": "Кол-во" },
+  { "field": "Контрагент", "viewMode": "Inaccessible" },
   "Auto"
 ]
 ```
 
 - Строка → `SelectedItemField`
 - `"Auto"` → `SelectedItemAuto` (только на уровне группировок; на верхнем уровне settings игнорируется)
-- Объект с `field`/`title` → `SelectedItemField` с `lwsTitle`
+- Объект с `field`/`title`/`viewMode` → `SelectedItemField` с `lwsTitle`/`viewMode` (см. [viewMode](#viewmode-режим-доступности))
 - Объект с `folder`/`items` → `SelectedItemFolder` — группа полей с заголовком и `placement=Auto`:
 
 ```json
@@ -602,13 +603,19 @@ XML-маппинг — по `<group>` на каждый элемент:
 ### order
 
 ```json
-"order": ["Количество desc", "Наименование", "Auto"]
+"order": [
+  "Количество desc",
+  "Наименование",
+  { "field": "Контрагент", "direction": "desc", "viewMode": "Inaccessible" },
+  "Auto"
+]
 ```
 
 - `"Field"` → `OrderItemField`, `orderType=Asc`
 - `"Field desc"` → `OrderItemField`, `orderType=Desc`
 - `"Field asc"` → `OrderItemField`, `orderType=Asc`
 - `"Auto"` → `OrderItemAuto` (только на уровне группировок; на верхнем уровне settings игнорируется)
+- Объект `{ field, direction?, viewMode? }` — нужен, когда требуется задать `viewMode` (см. [viewMode](#viewmode-режим-доступности))
 
 ### conditionalAppearance
 
@@ -757,6 +764,8 @@ XML-маппинг — по `<group>` на каждый элемент:
 | `filter` | Отборы (как в settings) |
 | `order` | Сортировка (умолч. `["Auto"]`) |
 | `outputParameters` | Параметры вывода (как в settings) |
+| `viewMode` | `"Normal"`, `"QuickAccess"`, `"Inaccessible"` — режим доступности группы в пользовательских настройках |
+| `itemsViewMode` | `"Normal"`, `"QuickAccess"`, `"Inaccessible"` — режим доступности подэлементов группы |
 | `children` | Вложенные элементы структуры |
 
 Пустой `groupBy` (или `[]`) = детальные записи (без `groupItems` в XML).
@@ -786,6 +795,55 @@ XML-маппинг — по `<group>` на каждый элемент:
   "selection": ["Сумма"]
 }
 ```
+
+### viewMode (режим доступности)
+
+`viewMode` управляет доступностью элемента в **пользовательских настройках** отчёта («Изменить вариант…» / «Настройки»). Возможные значения:
+
+| Значение | Семантика |
+|----------|-----------|
+| `"Normal"` | Пользователь видит и может править (default) |
+| `"Inaccessible"` | Скрыто от пользователя, не редактируется |
+| `"QuickAccess"` | Вынесено в быстрые настройки (на форму отчёта) |
+| `"Auto"` | Автоматический режим (наследование от контейнера) |
+
+Применяется в трёх контекстах:
+
+**1. Item-level** — на отдельном элементе блока (см. описание объектной формы соответствующего раздела):
+
+```json
+"filter":    [{ "field": "X", "op": "=", "value": "Y", "viewMode": "Inaccessible" }],
+"selection": [{ "field": "X", "viewMode": "Inaccessible" }],
+"order":     [{ "field": "X", "viewMode": "Inaccessible" }],
+"conditionalAppearance": [{ "filter": [...], "appearance": {...}, "viewMode": "Inaccessible" }],
+"dataParameters": [{ "parameter": "X", "viewMode": "QuickAccess" }]
+```
+
+Shorthand-флаги `@inaccessible`, `@quickAccess` доступны для `filter` и `dataParameters` строковых форм.
+
+**2. Block-level** — на самом блоке (внутри `settings`). Управляет доступностью всей группы как пункта пользовательских настроек:
+
+```json
+"settings": {
+  "selectionViewMode":              "Inaccessible",
+  "filterViewMode":                 "Inaccessible",
+  "orderViewMode":                  "Inaccessible",
+  "conditionalAppearanceViewMode":  "Inaccessible",
+  "itemsViewMode":                  "Inaccessible",
+  "selection": [...],
+  "filter":    [...]
+}
+```
+
+`itemsViewMode` на settings — общий режим для всех подэлементов варианта (`<dcsset:itemsViewMode>` в XML).
+
+**3. Structure item** — на элементе структуры (`group`):
+
+```json
+{ "type": "group", "groupBy": ["Организация"], "viewMode": "Inaccessible", "itemsViewMode": "Inaccessible" }
+```
+
+Поля опциональны: если не заданы, режим элемента наследуется. Платформа эмитит `viewMode`/`itemsViewMode` на структурных элементах не всегда — `skd-decompile` сохраняет значение точно как было в XML, чтобы round-trip был bit-perfect.
 
 ---
 

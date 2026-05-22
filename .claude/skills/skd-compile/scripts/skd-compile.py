@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# skd-compile v1.37 — Compile 1C DCS from JSON
+# skd-compile v1.38 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import json
@@ -37,6 +37,13 @@ def resolve_query_value(val, base_dir):
 
 
 def emit_mltext(lines, indent, tag, text, no_xsi_type=False):
+    # Empty value → self-closing tag (matches platform output)
+    if text is None or (isinstance(text, str) and text == ''):
+        if no_xsi_type:
+            lines.append(f"{indent}<{tag}/>")
+        else:
+            lines.append(f'{indent}<{tag} xsi:type="v8:LocalStringType"/>')
+        return
     if not text:
         lines.append(f"{indent}<{tag}/>")
         return
@@ -1553,10 +1560,12 @@ def emit_selection_item(lines, item, indent):
     lines.append(f'{indent}\t<dcsset:field>{esc_xml(str(item["field"]))}</dcsset:field>')
     if item.get('title'):
         emit_mltext(lines, f'{indent}\t', 'dcsset:lwsTitle', item['title'], no_xsi_type=True)
+    if item.get('viewMode'):
+        lines.append(f'{indent}\t<dcsset:viewMode>{esc_xml(str(item["viewMode"]))}</dcsset:viewMode>')
     lines.append(f'{indent}</dcsset:item>')
 
 
-def emit_selection(lines, items, indent, skip_auto=False):
+def emit_selection(lines, items, indent, skip_auto=False, block_view_mode=None):
     if not items or len(items) == 0:
         return
     lines.append(f'{indent}<dcsset:selection>')
@@ -1564,6 +1573,8 @@ def emit_selection(lines, items, indent, skip_auto=False):
         if skip_auto and isinstance(item, str) and item == 'Auto':
             continue
         emit_selection_item(lines, item, f'{indent}\t')
+    if block_view_mode is not None:
+        lines.append(f'{indent}\t<dcsset:viewMode>{esc_xml(str(block_view_mode))}</dcsset:viewMode>')
     lines.append(f'{indent}</dcsset:selection>')
 
 
@@ -1639,7 +1650,7 @@ def emit_filter_item(lines, item, indent):
     lines.append(f'{indent}</dcsset:item>')
 
 
-def emit_filter(lines, items, indent):
+def emit_filter(lines, items, indent, block_view_mode=None):
     if not items or len(items) == 0:
         return
 
@@ -1664,10 +1675,12 @@ def emit_filter(lines, items, indent):
             emit_filter_item(lines, filter_obj, f'{indent}\t')
         else:
             emit_filter_item(lines, item, f'{indent}\t')
+    if block_view_mode is not None:
+        lines.append(f'{indent}\t<dcsset:viewMode>{esc_xml(str(block_view_mode))}</dcsset:viewMode>')
     lines.append(f'{indent}</dcsset:filter>')
 
 
-def emit_order(lines, items, indent, skip_auto=False):
+def emit_order(lines, items, indent, skip_auto=False, block_view_mode=None):
     if not items or len(items) == 0:
         return
 
@@ -1689,6 +1702,25 @@ def emit_order(lines, items, indent, skip_auto=False):
                 lines.append(f'{indent}\t\t<dcsset:field>{esc_xml(field)}</dcsset:field>')
                 lines.append(f'{indent}\t\t<dcsset:orderType>{direction}</dcsset:orderType>')
                 lines.append(f'{indent}\t</dcsset:item>')
+        else:
+            # Object form: { field, direction, viewMode }
+            if str(item.get('field', '')) == 'Auto' or item.get('type') == 'auto':
+                if not skip_auto:
+                    lines.append(f'{indent}\t<dcsset:item xsi:type="dcsset:OrderItemAuto"/>')
+                continue
+            d = str(item.get('direction', 'Asc'))
+            if re.match(r'(?i)^desc$', d):
+                d = 'Desc'
+            elif re.match(r'(?i)^asc$', d):
+                d = 'Asc'
+            lines.append(f'{indent}\t<dcsset:item xsi:type="dcsset:OrderItemField">')
+            lines.append(f'{indent}\t\t<dcsset:field>{esc_xml(str(item["field"]))}</dcsset:field>')
+            lines.append(f'{indent}\t\t<dcsset:orderType>{d}</dcsset:orderType>')
+            if item.get('viewMode'):
+                lines.append(f'{indent}\t\t<dcsset:viewMode>{esc_xml(str(item["viewMode"]))}</dcsset:viewMode>')
+            lines.append(f'{indent}\t</dcsset:item>')
+    if block_view_mode is not None:
+        lines.append(f'{indent}\t<dcsset:viewMode>{esc_xml(str(block_view_mode))}</dcsset:viewMode>')
     lines.append(f'{indent}</dcsset:order>')
 
 
@@ -1723,7 +1755,7 @@ def emit_appearance_value(lines, key, val, indent):
     lines.append(f'{indent}</dcscor:item>')
 
 
-def emit_conditional_appearance(lines, items, indent):
+def emit_conditional_appearance(lines, items, indent, block_view_mode=None):
     if not items or len(items) == 0:
         return
 
@@ -1767,6 +1799,8 @@ def emit_conditional_appearance(lines, items, indent):
             lines.append(f'{indent}\t\t<dcsset:userSettingID>{esc_xml(uid)}</dcsset:userSettingID>')
 
         lines.append(f'{indent}\t</dcsset:item>')
+    if block_view_mode is not None:
+        lines.append(f'{indent}\t<dcsset:viewMode>{esc_xml(str(block_view_mode))}</dcsset:viewMode>')
     lines.append(f'{indent}</dcsset:conditionalAppearance>')
 
 
@@ -1932,13 +1966,11 @@ def emit_structure_item(lines, item, indent):
 
         emit_group_items(lines, item.get('groupBy') or item.get('groupFields'), f'{indent}\t')
 
-        # Default order to ["Auto"] if not specified
-        order_items = item.get('order') or ['Auto']
-        emit_order(lines, order_items, f'{indent}\t')
-
-        # Default selection to ["Auto"] if not specified
-        sel_items = item.get('selection') or ['Auto']
-        emit_selection(lines, sel_items, f'{indent}\t')
+        # Emit order/selection only if specified — platform doesn't always emit them on group
+        if item.get('order'):
+            emit_order(lines, item['order'], f'{indent}\t')
+        if item.get('selection'):
+            emit_selection(lines, item['selection'], f'{indent}\t')
 
         emit_filter(lines, item.get('filter'), f'{indent}\t')
 
@@ -1949,6 +1981,12 @@ def emit_structure_item(lines, item, indent):
         if item.get('children'):
             for child in item['children']:
                 emit_structure_item(lines, child, f'{indent}\t')
+
+        # viewMode/itemsViewMode — emit only when explicitly set (context-dependent)
+        if item.get('viewMode'):
+            lines.append(f'{indent}\t<dcsset:viewMode>{esc_xml(str(item["viewMode"]))}</dcsset:viewMode>')
+        if item.get('itemsViewMode'):
+            lines.append(f'{indent}\t<dcsset:itemsViewMode>{esc_xml(str(item["itemsViewMode"]))}</dcsset:itemsViewMode>')
 
         lines.append(f'{indent}</dcsset:item>')
 
@@ -2062,23 +2100,30 @@ def emit_settings_variants(lines, defn):
 
         s = v.get('settings', {})
 
+        # Helper: resolve XViewMode from settings — emit only if explicitly set
+        def _block_vm(key):
+            prop = f'{key}ViewMode'
+            if prop in s:
+                return str(s[prop])
+            return None
+
         # Selection
         if s.get('selection'):
-            emit_selection(lines, s['selection'], '\t\t\t', skip_auto=True)
+            emit_selection(lines, s['selection'], '\t\t\t', skip_auto=True, block_view_mode=_block_vm('selection'))
 
         # Filter
         if s.get('filter'):
-            emit_filter(lines, s['filter'], '\t\t\t')
+            emit_filter(lines, s['filter'], '\t\t\t', block_view_mode=_block_vm('filter'))
 
         # Order
         if s.get('order'):
-            emit_order(lines, s['order'], '\t\t\t', skip_auto=True)
+            emit_order(lines, s['order'], '\t\t\t', skip_auto=True, block_view_mode=_block_vm('order'))
 
         # ConditionalAppearance
         if s.get('conditionalAppearance'):
-            emit_conditional_appearance(lines, s['conditionalAppearance'], '\t\t\t')
+            emit_conditional_appearance(lines, s['conditionalAppearance'], '\t\t\t', block_view_mode=_block_vm('conditionalAppearance'))
 
-        # OutputParameters
+        # OutputParameters (platform does NOT emit <viewMode> on this block)
         if s.get('outputParameters'):
             emit_output_parameters(lines, s['outputParameters'], '\t\t\t')
 
@@ -2134,6 +2179,10 @@ def emit_settings_variants(lines, defn):
                 struct_items = [struct_items]
             for item in struct_items:
                 emit_structure_item(lines, item, '\t\t\t')
+
+        # <dcsset:itemsViewMode> on settings — emit only if explicitly set
+        if s.get('itemsViewMode'):
+            lines.append(f'\t\t\t<dcsset:itemsViewMode>{esc_xml(str(s["itemsViewMode"]))}</dcsset:itemsViewMode>')
 
         lines.append('\t\t</dcsset:settings>')
         lines.append('\t</settingsVariant>')

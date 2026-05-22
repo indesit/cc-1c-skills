@@ -1,4 +1,4 @@
-﻿# skd-compile v1.37 — Compile 1C DCS from JSON
+﻿# skd-compile v1.38 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[string]$DefinitionFile,
@@ -122,6 +122,15 @@ function Resolve-QueryValue {
 
 function Emit-MLText {
 	param([string]$tag, $text, [string]$indent, [switch]$NoXsiType)
+	# Empty value → self-closing tag (matches platform output)
+	if ($null -eq $text -or ($text -is [string] -and $text -eq '')) {
+		if ($NoXsiType) {
+			X "$indent<$tag/>"
+		} else {
+			X "$indent<$tag xsi:type=`"v8:LocalStringType`"/>"
+		}
+		return
+	}
 	if ($NoXsiType) {
 		X "$indent<$tag>"
 	} else {
@@ -1870,11 +1879,14 @@ function Emit-SelectionItem {
 	if ($item.title) {
 		Emit-MLText -tag "dcsset:lwsTitle" -text $item.title -indent "$indent`t" -NoXsiType
 	}
+	if ($item.viewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$($item.viewMode)")</dcsset:viewMode>"
+	}
 	X "$indent</dcsset:item>"
 }
 
 function Emit-Selection {
-	param($items, [string]$indent, [switch]$skipAuto)
+	param($items, [string]$indent, [switch]$skipAuto, $blockViewMode = $null)
 
 	if (-not $items -or $items.Count -eq 0) { return }
 
@@ -1882,6 +1894,9 @@ function Emit-Selection {
 	foreach ($item in $items) {
 		if ($skipAuto -and ($item -is [string]) -and $item -eq 'Auto') { continue }
 		Emit-SelectionItem -item $item -indent "$indent`t"
+	}
+	if ($null -ne $blockViewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$blockViewMode")</dcsset:viewMode>"
 	}
 	X "$indent</dcsset:selection>"
 }
@@ -1971,7 +1986,7 @@ function Emit-FilterItem {
 }
 
 function Emit-Filter {
-	param($items, [string]$indent)
+	param($items, [string]$indent, $blockViewMode = $null)
 
 	if (-not $items -or $items.Count -eq 0) { return }
 
@@ -2003,11 +2018,14 @@ function Emit-Filter {
 			Emit-FilterItem -item $item -indent "$indent`t"
 		}
 	}
+	if ($null -ne $blockViewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$blockViewMode")</dcsset:viewMode>"
+	}
 	X "$indent</dcsset:filter>"
 }
 
 function Emit-Order {
-	param($items, [string]$indent, [switch]$skipAuto)
+	param($items, [string]$indent, [switch]$skipAuto, $blockViewMode = $null)
 
 	if (-not $items -or $items.Count -eq 0) { return }
 
@@ -2029,7 +2047,27 @@ function Emit-Order {
 				X "$indent`t`t<dcsset:orderType>$dir</dcsset:orderType>"
 				X "$indent`t</dcsset:item>"
 			}
+		} else {
+			# Object form: { field, direction, viewMode }
+			if ($item.field -eq "Auto" -or $item.type -eq "auto") {
+				if (-not $skipAuto) {
+					X "$indent`t<dcsset:item xsi:type=`"dcsset:OrderItemAuto`"/>"
+				}
+				continue
+			}
+			$dir = if ($item.direction) { "$($item.direction)" } else { "Asc" }
+			if ($dir -match '^(?i)desc$') { $dir = "Desc" } elseif ($dir -match '^(?i)asc$') { $dir = "Asc" }
+			X "$indent`t<dcsset:item xsi:type=`"dcsset:OrderItemField`">"
+			X "$indent`t`t<dcsset:field>$(Esc-Xml "$($item.field)")</dcsset:field>"
+			X "$indent`t`t<dcsset:orderType>$dir</dcsset:orderType>"
+			if ($item.viewMode) {
+				X "$indent`t`t<dcsset:viewMode>$(Esc-Xml "$($item.viewMode)")</dcsset:viewMode>"
+			}
+			X "$indent`t</dcsset:item>"
 		}
+	}
+	if ($null -ne $blockViewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$blockViewMode")</dcsset:viewMode>"
 	}
 	X "$indent</dcsset:order>"
 }
@@ -2071,7 +2109,7 @@ function Emit-AppearanceValue {
 }
 
 function Emit-ConditionalAppearance {
-	param($items, [string]$indent)
+	param($items, [string]$indent, $blockViewMode = $null)
 
 	if (-not $items -or $items.Count -eq 0) { return }
 
@@ -2124,11 +2162,14 @@ function Emit-ConditionalAppearance {
 
 		X "$indent`t</dcsset:item>"
 	}
+	if ($null -ne $blockViewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$blockViewMode")</dcsset:viewMode>"
+	}
 	X "$indent</dcsset:conditionalAppearance>"
 }
 
 function Emit-OutputParameters {
-	param($params, [string]$indent)
+	param($params, [string]$indent, $blockViewMode = $null)
 
 	if (-not $params) { return }
 
@@ -2152,11 +2193,14 @@ function Emit-OutputParameters {
 		}
 		X "$indent`t</dcscor:item>"
 	}
+	if ($null -ne $blockViewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$blockViewMode")</dcsset:viewMode>"
+	}
 	X "$indent</dcsset:outputParameters>"
 }
 
 function Emit-DataParameters {
-	param($items, [string]$indent)
+	param($items, [string]$indent, $blockViewMode = $null)
 
 	if (-not $items -or $items.Count -eq 0) { return }
 
@@ -2241,6 +2285,9 @@ function Emit-DataParameters {
 		}
 
 		X "$indent`t</dcscor:item>"
+	}
+	if ($null -ne $blockViewMode) {
+		X "$indent`t<dcsset:viewMode>$(Esc-Xml "$blockViewMode")</dcsset:viewMode>"
 	}
 	X "$indent</dcsset:dataParameters>"
 }
@@ -2333,15 +2380,13 @@ function Emit-StructureItem {
 		$gb = if ($item.groupBy) { $item.groupBy } else { $item.groupFields }
 		Emit-GroupItems -groupBy $gb -indent "$indent`t"
 
-		# Default order to ["Auto"] if not specified
-		$orderItems = $item.order
-		if (-not $orderItems) { $orderItems = @("Auto") }
-		Emit-Order -items $orderItems -indent "$indent`t"
-
-		# Default selection to ["Auto"] if not specified
-		$selItems = $item.selection
-		if (-not $selItems) { $selItems = @("Auto") }
-		Emit-Selection -items $selItems -indent "$indent`t"
+		# Emit order/selection only if specified — platform doesn't always emit them on group
+		if ($item.order) {
+			Emit-Order -items $item.order -indent "$indent`t"
+		}
+		if ($item.selection) {
+			Emit-Selection -items $item.selection -indent "$indent`t"
+		}
 
 		Emit-Filter -items $item.filter -indent "$indent`t"
 
@@ -2354,6 +2399,16 @@ function Emit-StructureItem {
 			foreach ($child in $item.children) {
 				Emit-StructureItem -item $child -indent "$indent`t"
 			}
+		}
+
+		# viewMode/itemsViewMode on StructureItemGroup are context-dependent —
+		# platform emits them in some shapes (top-level single group) but not always.
+		# Emit only when explicitly set in JSON (preserves bit-perfect round-trip).
+		if ($item.viewMode) {
+			X "$indent`t<dcsset:viewMode>$(Esc-Xml "$($item.viewMode)")</dcsset:viewMode>"
+		}
+		if ($item.itemsViewMode) {
+			X "$indent`t<dcsset:itemsViewMode>$(Esc-Xml "$($item.itemsViewMode)")</dcsset:itemsViewMode>"
 		}
 
 		X "$indent</dcsset:item>"
@@ -2500,27 +2555,34 @@ function Emit-SettingsVariants {
 
 		$s = $v.settings
 
+		# Helper: resolve XViewMode from settings — emit only if explicitly set
+		function Get-BlockVM([string]$key) {
+			$prop = "${key}ViewMode"
+			if ($s.PSObject.Properties[$prop]) { return "$($s.$prop)" }
+			return $null
+		}
+
 		# Selection (Auto items only belong at group level, not top-level settings)
 		if ($s.selection) {
-			Emit-Selection -items $s.selection -indent "`t`t`t" -skipAuto
+			Emit-Selection -items $s.selection -indent "`t`t`t" -skipAuto -blockViewMode (Get-BlockVM 'selection')
 		}
 
 		# Filter
 		if ($s.filter) {
-			Emit-Filter -items $s.filter -indent "`t`t`t"
+			Emit-Filter -items $s.filter -indent "`t`t`t" -blockViewMode (Get-BlockVM 'filter')
 		}
 
 		# Order (Auto items only belong at group level, not top-level settings)
 		if ($s.order) {
-			Emit-Order -items $s.order -indent "`t`t`t" -skipAuto
+			Emit-Order -items $s.order -indent "`t`t`t" -skipAuto -blockViewMode (Get-BlockVM 'order')
 		}
 
 		# ConditionalAppearance
 		if ($s.conditionalAppearance) {
-			Emit-ConditionalAppearance -items $s.conditionalAppearance -indent "`t`t`t"
+			Emit-ConditionalAppearance -items $s.conditionalAppearance -indent "`t`t`t" -blockViewMode (Get-BlockVM 'conditionalAppearance')
 		}
 
-		# OutputParameters
+		# OutputParameters (platform does NOT emit <viewMode> on this block)
 		if ($s.outputParameters) {
 			Emit-OutputParameters -params $s.outputParameters -indent "`t`t`t"
 		}
@@ -2583,6 +2645,11 @@ function Emit-SettingsVariants {
 			foreach ($item in $structItems) {
 				Emit-StructureItem -item $item -indent "`t`t`t"
 			}
+		}
+
+		# <dcsset:itemsViewMode> on <dcsset:settings> — emit only if explicitly set
+		if ($s.itemsViewMode) {
+			X "`t`t`t<dcsset:itemsViewMode>$(Esc-Xml "$($s.itemsViewMode)")</dcsset:itemsViewMode>"
 		}
 
 		X "`t`t</dcsset:settings>"
