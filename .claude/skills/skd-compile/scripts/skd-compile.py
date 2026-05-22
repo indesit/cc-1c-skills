@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# skd-compile v1.41 — Compile 1C DCS from JSON
+# skd-compile v1.42 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import json
@@ -2060,6 +2060,9 @@ def emit_structure_item(lines, item, indent):
             emit_selection(lines, item['selection'], f'{indent}\t')
 
         emit_filter(lines, item.get('filter'), f'{indent}\t')
+
+        if item.get('conditionalAppearance'):
+            emit_conditional_appearance(lines, item['conditionalAppearance'], f'{indent}\t')
 
         if item.get('outputParameters'):
             emit_output_parameters(lines, item['outputParameters'], f'{indent}\t')
