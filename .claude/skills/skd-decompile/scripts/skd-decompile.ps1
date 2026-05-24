@@ -1,4 +1,4 @@
-﻿# skd-decompile v0.83 — Decompile 1C DCS Template.xml to JSON DSL (draft)
+﻿# skd-decompile v0.84 — Decompile 1C DCS Template.xml to JSON DSL (draft)
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[Parameter(Mandatory)]
@@ -2646,7 +2646,13 @@ foreach ($p in $paramsRaw) {
 	# Иначе compile (который генерирует именно эти имена + type=date + DateFractions=Date)
 	# не сможет вернуть bit-perfect для отчётов с шаблоном "Период<X>" → "НачалоПериода<X>"/
 	# "КонецПериода<X>" + DateFractions=DateTime. Оставляем как явные параметры.
-	if ($startMatch -eq 'НачалоПериода' -and $endMatch -eq 'КонецПериода') {
+	# Также НЕ сворачиваем если companions имеют availableAsField=false — compile
+	# auto-gen не передаёт этот атрибут (ERP-стиль без него; БСП-стиль с ним —
+	# вариативность не выразима через @autoDates флаг, пусть companions останутся явными).
+	$beginP = $paramByName[$startMatch]
+	$endP   = $paramByName[$endMatch]
+	$hasNotAField = ($beginP -and $beginP.notAField) -or ($endP -and $endP.notAField)
+	if ($startMatch -eq 'НачалоПериода' -and $endMatch -eq 'КонецПериода' -and -not $hasNotAField) {
 		$p['autoDates'] = $true
 		$removedNames[$startMatch] = $true
 		$removedNames[$endMatch] = $true
