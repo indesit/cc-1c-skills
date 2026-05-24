@@ -398,7 +398,7 @@ XML-маппинг — по `<group>` на каждый элемент:
 | `name` | Имя параметра |
 | `title` | Заголовок (умолч. = name) |
 | `type` | Тип (см. таблицу типов) |
-| `value` | Значение по умолчанию |
+| `value` | Значение по умолчанию (скаляр; для `valueListAllowed=true` — массив значений по умолчанию: `[ "ПланСчетов.Хозрасчетный.X", "...Y", "...Z" ]`) |
 | `expression` | Выражение для вычисления |
 | `availableAsField` | `false` — скрыть из полей |
 | `valueListAllowed` | `true` — разрешить список значений |
@@ -694,7 +694,9 @@ decompile эмитит длинные имена (`sourceDataSet` и т.д.); co
 | `useInDontUse` | Массив контекстов где правило **НЕ** применяется. Возможные имена: `group`, `hierarchicalGroup`, `overall`, `fieldsHeader`, `header`, `parameters`, `filter`, `resourceFieldsHeader`, `overallHeader`, `overallResourceFieldsHeader` |
 
 **Типы значений appearance** определяются автоматически:
-- `style:XXX`, `web:XXX`, `win:XXX` → `v8ui:Color`
+- `style:XXX` → `v8ui:Color` (палитра темы платформы, namespace `http://v8.1c.ru/8.1/data/ui/style`)
+- `web:XXX` → `v8ui:Color` (web-имена цветов, namespace `http://v8.1c.ru/8.1/data/ui/colors/web`)
+- `win:XXX` → `v8ui:Color` (системные цвета Windows, namespace `http://v8.1c.ru/8.1/data/ui/colors/windows`)
 - Ключи `ЦветТекста`/`ЦветФона`/`ЦветГраницы` со значениями типа `auto` или `#XXXXXX` → `v8ui:Color`
 - Ключ `Размещение` → `dcscor:DataCompositionTextPlacementType`
 - Ключи `ГоризонтальноеПоложение`/`ВертикальноеПоложение` → `v8ui:HorizontalAlign`/`VerticalAlign`
