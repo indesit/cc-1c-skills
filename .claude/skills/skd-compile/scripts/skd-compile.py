@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# skd-compile v1.96 — Compile 1C DCS from JSON
+# skd-compile v1.97 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import json
@@ -1040,15 +1040,25 @@ def emit_param_value(lines, type_str, val, indent, value_list_allowed=False):
         emit_empty_value(lines, type_str, indent, '', value_list_allowed)
         return
 
-    val_str = str(val)
+    # val может быть строкой (variant only) или dict {variant, startDate?, endDate?}.
+    variant_str = None
+    sd_str = None
+    ed_str = None
+    if isinstance(val, dict):
+        variant_str = str(val.get('variant')) if val.get('variant') is not None else None
+        sd_str = str(val['startDate']) if 'startDate' in val else None
+        ed_str = str(val['endDate']) if 'endDate' in val else None
+    val_str = variant_str if variant_str else str(val)
 
     if type_str == 'StandardPeriod':
         # Platform-pattern: startDate/endDate ТОЛЬКО для variant=Custom.
         lines.append(f'{indent}<value xsi:type="v8:StandardPeriod">')
         lines.append(f'{indent}\t<v8:variant xsi:type="v8:StandardPeriodVariant">{esc_xml(val_str)}</v8:variant>')
         if val_str == 'Custom':
-            lines.append(f'{indent}\t<v8:startDate>0001-01-01T00:00:00</v8:startDate>')
-            lines.append(f'{indent}\t<v8:endDate>0001-01-01T00:00:00</v8:endDate>')
+            sd_out = sd_str if sd_str else '0001-01-01T00:00:00'
+            ed_out = ed_str if ed_str else '0001-01-01T00:00:00'
+            lines.append(f'{indent}\t<v8:startDate>{esc_xml(sd_out)}</v8:startDate>')
+            lines.append(f'{indent}\t<v8:endDate>{esc_xml(ed_out)}</v8:endDate>')
         lines.append(f'{indent}</value>')
     elif type_str and re.match(r'^date', type_str):
         lines.append(f'{indent}<value xsi:type="xs:dateTime">{esc_xml(val_str)}</value>')

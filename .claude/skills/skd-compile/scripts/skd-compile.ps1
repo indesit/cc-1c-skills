@@ -1,4 +1,4 @@
-﻿# skd-compile v1.96 — Compile 1C DCS from JSON
+﻿# skd-compile v1.97 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[string]$DefinitionFile,
@@ -1502,7 +1502,23 @@ function Emit-ParamValue {
 		return
 	}
 
-	$valStr = "$val"
+	# val может быть строкой (variant only) или объектом {variant, startDate?, endDate?}.
+	$valIsDict = ($val -is [hashtable]) -or ($val -is [System.Collections.IDictionary]) -or ($val -is [PSCustomObject])
+	$variantStr = $null
+	$sdStr = $null
+	$edStr = $null
+	if ($valIsDict) {
+		if ($val -is [PSCustomObject]) {
+			if ($val.PSObject.Properties['variant'])   { $variantStr = "$($val.variant)" }
+			if ($val.PSObject.Properties['startDate']) { $sdStr = "$($val.startDate)" }
+			if ($val.PSObject.Properties['endDate'])   { $edStr = "$($val.endDate)" }
+		} else {
+			if ($val.Contains('variant'))   { $variantStr = "$($val['variant'])" }
+			if ($val.Contains('startDate')) { $sdStr = "$($val['startDate'])" }
+			if ($val.Contains('endDate'))   { $edStr = "$($val['endDate'])" }
+		}
+	}
+	$valStr = if ($variantStr) { $variantStr } else { "$val" }
 
 	if ($type -eq "StandardPeriod") {
 		# Platform-pattern: startDate/endDate эмитятся ТОЛЬКО для variant=Custom.
@@ -1510,8 +1526,10 @@ function Emit-ParamValue {
 		X "$indent<value xsi:type=`"v8:StandardPeriod`">"
 		X "$indent`t<v8:variant xsi:type=`"v8:StandardPeriodVariant`">$(Esc-Xml $valStr)</v8:variant>"
 		if ($valStr -eq 'Custom') {
-			X "$indent`t<v8:startDate>0001-01-01T00:00:00</v8:startDate>"
-			X "$indent`t<v8:endDate>0001-01-01T00:00:00</v8:endDate>"
+			$sdOut = if ($sdStr) { $sdStr } else { '0001-01-01T00:00:00' }
+			$edOut = if ($edStr) { $edStr } else { '0001-01-01T00:00:00' }
+			X "$indent`t<v8:startDate>$(Esc-Xml $sdOut)</v8:startDate>"
+			X "$indent`t<v8:endDate>$(Esc-Xml $edOut)</v8:endDate>"
 		}
 		X "$indent</value>"
 	} elseif ($type -match '^date') {

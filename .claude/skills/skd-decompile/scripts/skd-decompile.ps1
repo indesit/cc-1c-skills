@@ -1,4 +1,4 @@
-﻿# skd-decompile v0.79 — Decompile 1C DCS Template.xml to JSON DSL (draft)
+﻿# skd-decompile v0.80 — Decompile 1C DCS Template.xml to JSON DSL (draft)
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[Parameter(Mandatory)]
@@ -755,8 +755,18 @@ function Build-Parameter {
 			$vType = Get-LocalXsiType $valueNode
 			if ($vType -eq 'StandardPeriod') {
 				$variant = Get-Text $valueNode "v8:variant"
-				if ($variant -and $variant -ne 'Custom') { $valueDisplay = $variant }
-				# Custom with explicit dates → object form (handled below via needsObject)
+				$sd = Get-Text $valueNode "v8:startDate"
+				$ed = Get-Text $valueNode "v8:endDate"
+				$hasExplicitDates = ($sd -and $sd -ne '0001-01-01T00:00:00') -or ($ed -and $ed -ne '0001-01-01T00:00:00')
+				if ($hasExplicitDates) {
+					# Custom с явными датами → object form {variant, startDate, endDate}
+					$valueDisplay = [ordered]@{ variant = $variant }
+					if ($sd) { $valueDisplay['startDate'] = $sd }
+					if ($ed) { $valueDisplay['endDate'] = $ed }
+				} elseif ($variant -and $variant -ne 'Custom') {
+					$valueDisplay = $variant
+				}
+				# Custom без явных дат — valueDisplay = null, compile подставит 0001-01-01.
 			} elseif ($vType -eq 'DesignTimeValue') {
 				$valueDisplay = $valueNode.InnerText
 			} elseif ($vType -eq 'LocalStringType') {
