@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# skd-compile v1.103 — Compile 1C DCS from JSON
+# skd-compile v1.104 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import argparse
 import json
@@ -2329,6 +2329,11 @@ def parse_structure_shorthand(s):
                 group['groupBy'] = [m_named.group(2).strip()]
             else:
                 group['groupBy'] = [seg]
+
+        # Платформа в каждую группировку кладёт авто-поле выбора и авто-порядок;
+        # shorthand должен соответствовать ручному добавлению группировки в конфигураторе.
+        group['selection'] = ['Auto']
+        group['order'] = ['Auto']
 
         if innermost is not None:
             group['children'] = [innermost]

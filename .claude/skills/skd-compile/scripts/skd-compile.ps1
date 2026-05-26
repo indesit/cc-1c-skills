@@ -1,4 +1,4 @@
-﻿# skd-compile v1.103 — Compile 1C DCS from JSON
+﻿# skd-compile v1.104 — Compile 1C DCS from JSON
 # Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 param(
 	[string]$DefinitionFile,
@@ -2932,6 +2932,11 @@ function Parse-StructureShorthand {
 		} else {
 			$group | Add-Member -NotePropertyName "groupBy" -NotePropertyValue @($seg)
 		}
+
+		# Платформа в каждую группировку кладёт авто-поле выбора и авто-порядок;
+		# shorthand должен соответствовать ручному добавлению группировки в конфигураторе.
+		$group | Add-Member -NotePropertyName "selection" -NotePropertyValue @("Auto")
+		$group | Add-Member -NotePropertyName "order" -NotePropertyValue @("Auto")
 
 		if ($null -ne $innermost) {
 			$group | Add-Member -NotePropertyName "children" -NotePropertyValue @($innermost)
