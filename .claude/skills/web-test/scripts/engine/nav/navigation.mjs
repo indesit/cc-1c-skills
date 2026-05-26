@@ -8,14 +8,14 @@ import {
   readSectionsScript, readTabsScript, readCommandsScript,
   navigateSectionScript, openCommandScript, switchTabScript,
   detectFormScript,
-} from '../dom.mjs';
+} from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors } from '../core/errors.mjs';
 import { waitForStable, waitForCondition } from '../core/wait.mjs';
 import { highlight, unhighlight } from '../recording/highlight.mjs';
 import { returnFormState } from '../core/helpers.mjs';
 // pasteText + getFormState live in browser.mjs (move to forms/ in a later stage).
 // Static import — ESM cycle that resolves at call time.
-import { pasteText, getFormState } from '../browser.mjs';
+import { pasteText, getFormState } from '../../browser.mjs';
 
 /**
  * Get current page state: active section, tabs.

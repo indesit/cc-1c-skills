@@ -6,7 +6,7 @@ import {
 } from './state.mjs';
 import {
   detectFormScript, findClickTargetScript, resolveGridScript, readSubmenuScript,
-} from '../dom.mjs';
+} from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors, fetchErrorStack } from './errors.mjs';
 import { waitForStable, startNetworkMonitor } from './wait.mjs';
 import { highlight, unhighlight } from '../recording/highlight.mjs';
@@ -16,7 +16,7 @@ import {
   clickSpreadsheetCell, findSpreadsheetCellByText,
 } from '../table/spreadsheet.mjs';
 // getFormState still in browser.mjs.
-import { getFormState } from '../browser.mjs';
+import { getFormState } from '../../browser.mjs';
 
 /** Click a button/hyperlink/tab on the current form. Use {dblclick: true} to double-click (open items from lists).
  *  First argument can also be an object { row, column } to click a SpreadsheetDocument cell. */

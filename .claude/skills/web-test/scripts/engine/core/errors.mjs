@@ -2,7 +2,7 @@
 // Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 
 import { page } from './state.mjs';
-import { checkErrorsScript } from '../dom.mjs';
+import { checkErrorsScript } from '../../dom.mjs';
 import { waitForStable } from './wait.mjs';
 
 /**

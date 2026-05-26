@@ -4,7 +4,7 @@
 
 import { page } from './state.mjs';
 import { dismissPendingErrors, checkForErrors } from './errors.mjs';
-import { getFormState } from '../browser.mjs';
+import { getFormState } from '../../browser.mjs';
 
 /**
  * page.click with the standard "intercepts pointer events" retry ladder:

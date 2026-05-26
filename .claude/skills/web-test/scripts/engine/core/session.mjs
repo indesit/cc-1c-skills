@@ -17,7 +17,7 @@ import { stopRecording } from '../recording/capture.mjs';
 // getPageState lives in browser.mjs (moves to nav/navigation.mjs in a later stage).
 // Static import is a deliberate ESM cycle — fine because the binding is used at
 // call time (inside async connect/createContext), not at module evaluation time.
-import { getPageState } from '../browser.mjs';
+import { getPageState } from '../../browser.mjs';
 
 /**
  * Find the 1C browser extension in Chrome/Edge user profiles.

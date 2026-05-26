@@ -10,9 +10,9 @@
 import { dirname, resolve as pathResolve } from 'path';
 import { fileURLToPath } from 'url';
 
-// Project root: 4 levels up from .claude/skills/web-test/scripts/core/state.mjs
+// Project root: 6 levels up from .claude/skills/web-test/scripts/engine/core/state.mjs
 const __fn_state = fileURLToPath(import.meta.url);
-export const projectRoot = pathResolve(dirname(__fn_state), '..', '..', '..', '..', '..');
+export const projectRoot = pathResolve(dirname(__fn_state), '..', '..', '..', '..', '..', '..');
 
 /** Resolve a user-provided path relative to the project root (not cwd). */
 export const resolveProjectPath = (p) => pathResolve(projectRoot, p);

@@ -2,7 +2,7 @@
 // Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 
 import { page, MAX_WAIT, POLL_INTERVAL, STABLE_CYCLES } from './state.mjs';
-import { detectFormScript } from '../dom.mjs';
+import { detectFormScript } from '../../dom.mjs';
 
 /**
  * Smart wait: poll until DOM is stable and no loading indicators are visible.

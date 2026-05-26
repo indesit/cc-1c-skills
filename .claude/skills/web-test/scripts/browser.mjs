@@ -35,7 +35,7 @@ import {
   LOAD_TIMEOUT, INIT_TIMEOUT, ACTION_WAIT, MAX_WAIT, POLL_INTERVAL, STABLE_CYCLES,
   EXT_ID, projectRoot, resolveProjectPath, normYo,
   isConnected, ensureConnected, getPage, setPreserveClipboard,
-} from './core/state.mjs';
+} from './engine/core/state.mjs';
 
 export { isConnected, getPage, setPreserveClipboard, ensureConnected };
 export async function saveClipboard() {
@@ -130,27 +130,27 @@ export {
   connect, disconnect, attach, detach, getSession,
   createContext, setActiveContext, listContexts, getActiveContext,
   hasContext, closeContext,
-} from './core/session.mjs';
+} from './engine/core/session.mjs';
 
 // ============================================================
 // Wait + error/modal handling — extracted to core/{wait,errors}.mjs
 // ============================================================
 import {
   waitForStable, waitForCondition, startNetworkMonitor,
-} from './core/wait.mjs';
+} from './engine/core/wait.mjs';
 import {
   closeModals, checkForErrors, dismissPendingErrors, fetchErrorStack,
   _detectPlatformDialogs, _closePlatformDialogs,
-} from './core/errors.mjs';
+} from './engine/core/errors.mjs';
 import {
   safeClick, findFieldInputId, readEdd, returnFormState,
   detectNewForm as helperDetectNewForm,
-} from './core/helpers.mjs';
-import { getGridToggleIcon, shouldClickToggle } from './table/grid-toggle.mjs';
+} from './engine/core/helpers.mjs';
+import { getGridToggleIcon, shouldClickToggle } from './engine/table/grid-toggle.mjs';
 // Re-export only what was publicly exported before the refactor.
 // waitForStable/waitForCondition/startNetworkMonitor/closeModals/checkForErrors/
 // dismissPendingErrors are internal helpers — imported above for local use only.
-export { fetchErrorStack } from './core/errors.mjs';
+export { fetchErrorStack } from './engine/core/errors.mjs';
 
 /* getPage moved to core/state.mjs */
 
@@ -160,7 +160,7 @@ export { fetchErrorStack } from './core/errors.mjs';
 export {
   getPageState, getSections, navigateSection, getCommands,
   openCommand, switchTab, openFile, navigateLink,
-} from './nav/navigation.mjs';
+} from './engine/nav/navigation.mjs';
 
 /** Read current form state. Single evaluate call via combined script. */
 export async function getFormState() {
@@ -184,50 +184,50 @@ export async function getFormState() {
 // ============================================================
 // Table reading + SpreadsheetDocument — extracted to table/spreadsheet.mjs
 // ============================================================
-export { readTable } from './table/grid.mjs';
-export { readSpreadsheet } from './table/spreadsheet.mjs';
+export { readTable } from './engine/table/grid.mjs';
+export { readSpreadsheet } from './engine/table/spreadsheet.mjs';
 
 
 // ============================================================
 // Value selection (DLB/CB) — extracted to forms/select-value.mjs
 // ============================================================
-export { selectValue } from './forms/select-value.mjs';
+export { selectValue } from './engine/forms/select-value.mjs';
 import {
   selectValue, pickFromSelectionForm, isTypeDialog, pickFromTypeDialog,
   fillReferenceField,
-} from './forms/select-value.mjs';
+} from './engine/forms/select-value.mjs';
 
 
 
 // ============================================================
 // Fill fields — extracted to forms/fill.mjs
 // ============================================================
-export { fillFields, fillField } from './forms/fill.mjs';
+export { fillFields, fillField } from './engine/forms/fill.mjs';
 
 
 // ============================================================
 // clickElement dispatcher — extracted to core/click.mjs
 // ============================================================
-export { clickElement } from './core/click.mjs';
-import { clickElement } from './core/click.mjs';
+export { clickElement } from './engine/core/click.mjs';
+import { clickElement } from './engine/core/click.mjs';
 
 // ============================================================
 // Close form — extracted to forms/close.mjs
 // ============================================================
-export { closeForm } from './forms/close.mjs';
+export { closeForm } from './engine/forms/close.mjs';
 
 
 
 // ============================================================
 // fillTableRow / deleteTableRow — extracted to table/{row-fill,grid}.mjs
 // ============================================================
-export { fillTableRow } from './table/row-fill.mjs';
-export { deleteTableRow } from './table/grid.mjs';
+export { fillTableRow } from './engine/table/row-fill.mjs';
+export { deleteTableRow } from './engine/table/grid.mjs';
 
 // ============================================================
 // List filters — extracted to table/filter.mjs
 // ============================================================
-export { filterList, unfilterList } from './table/filter.mjs';
+export { filterList, unfilterList } from './engine/table/filter.mjs';
 
 
 // ============================================================
@@ -235,15 +235,15 @@ export { filterList, unfilterList } from './table/filter.mjs';
 // ============================================================
 export {
   screenshot, wait, isRecording, startRecording, stopRecording,
-} from './recording/capture.mjs';
+} from './engine/recording/capture.mjs';
 export {
   showCaption, hideCaption, getCaptions,
   showTitleSlide, hideTitleSlide,
   showImage, hideImage,
-} from './recording/captions.mjs';
+} from './engine/recording/captions.mjs';
 export {
   highlight, unhighlight, setHighlight, isHighlightMode,
-} from './recording/highlight.mjs';
-export { addNarration } from './recording/narration.mjs';
+} from './engine/recording/highlight.mjs';
+export { addNarration } from './engine/recording/narration.mjs';
 
 /* ensureConnected moved to core/state.mjs */

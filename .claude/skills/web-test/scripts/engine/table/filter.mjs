@@ -2,14 +2,14 @@
 // Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 
 import { page, ensureConnected, normYo, highlightMode, ACTION_WAIT } from '../core/state.mjs';
-import { detectFormScript, resolveGridScript } from '../dom.mjs';
+import { detectFormScript, resolveGridScript } from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors } from '../core/errors.mjs';
 import { waitForStable, waitForCondition } from '../core/wait.mjs';
 import { highlight, unhighlight } from '../recording/highlight.mjs';
 import { safeClick } from '../core/helpers.mjs';
 import { selectValue, fillReferenceField } from '../forms/select-value.mjs';
 // pasteText + getFormState + clickElement still in browser.mjs.
-import { pasteText, getFormState, clickElement } from '../browser.mjs';
+import { pasteText, getFormState, clickElement } from '../../browser.mjs';
 
 /**
  * Filter the current list by field value, or search via search bar.

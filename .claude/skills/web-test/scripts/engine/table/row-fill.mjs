@@ -6,7 +6,7 @@ import {
 } from '../core/state.mjs';
 import {
   detectFormScript, resolveGridScript, readTableScript,
-} from '../dom.mjs';
+} from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors } from '../core/errors.mjs';
 import { waitForStable, waitForCondition, startNetworkMonitor } from '../core/wait.mjs';
 import { highlight, unhighlight } from '../recording/highlight.mjs';
@@ -20,7 +20,7 @@ import {
   fillReferenceField, selectValue,
 } from '../forms/select-value.mjs';
 // pasteText + getFormState still in browser.mjs (cycle).
-import { pasteText, getFormState } from '../browser.mjs';
+import { pasteText, getFormState } from '../../browser.mjs';
 
 /**
  * Fill cells in the current table row via Tab navigation.

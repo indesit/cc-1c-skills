@@ -6,12 +6,12 @@
 // Отдельно от SpreadsheetDocument (table/spreadsheet.mjs).
 
 import { page, ensureConnected } from '../core/state.mjs';
-import { detectFormScript, readTableScript, resolveGridScript } from '../dom.mjs';
+import { detectFormScript, readTableScript, resolveGridScript } from '../../dom.mjs';
 import { dismissPendingErrors } from '../core/errors.mjs';
 import { waitForStable } from '../core/wait.mjs';
 import { clickElement } from '../core/click.mjs';
 // getFormState lives in browser.mjs.
-import { getFormState } from '../browser.mjs';
+import { getFormState } from '../../browser.mjs';
 
 /** Read structured table data with pagination. Returns columns, rows, total count. */
 export async function readTable({ maxRows = 20, offset = 0, table } = {}) {

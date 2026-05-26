@@ -2,10 +2,10 @@
 // Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 
 import { page, recorder, ensureConnected } from '../core/state.mjs';
-import { detectFormScript } from '../dom.mjs';
+import { detectFormScript } from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors, _detectPlatformDialogs, _closePlatformDialogs } from '../core/errors.mjs';
 import { waitForStable } from '../core/wait.mjs';
-import { getFormState } from '../browser.mjs';
+import { getFormState } from '../../browser.mjs';
 
 /**
  * Close the current form/dialog via Escape.

@@ -8,7 +8,7 @@ import {
 import {
   readSubmenuScript, detectFormScript, resolveGridScript,
   findClickTargetScript, resolveFieldsScript,
-} from '../dom.mjs';
+} from '../../dom.mjs';
 
 /**
  * Highlight an element on the page (visual accent for video recordings).

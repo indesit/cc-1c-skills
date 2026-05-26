@@ -6,7 +6,7 @@ import {
 } from '../core/state.mjs';
 import {
   detectFormScript, resolveFieldsScript, readFormScript,
-} from '../dom.mjs';
+} from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors } from '../core/errors.mjs';
 import { waitForStable, startNetworkMonitor } from '../core/wait.mjs';
 import { highlight, unhighlight } from '../recording/highlight.mjs';
@@ -15,7 +15,7 @@ import {
   isTypeDialog, pickFromTypeDialog,
 } from './select-value.mjs';
 // pasteText + getFormState live in browser.mjs.
-import { pasteText, getFormState } from '../browser.mjs';
+import { pasteText, getFormState } from '../../browser.mjs';
 
 /** Fill fields on the current form via Playwright page.fill(). Returns fill results + updated form. */
 export async function fillFields(fields) {

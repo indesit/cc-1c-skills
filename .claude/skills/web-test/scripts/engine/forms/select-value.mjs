@@ -7,7 +7,7 @@ import {
 import {
   detectFormScript, findFieldButtonScript, resolveFieldsScript,
   readSubmenuScript, checkErrorsScript,
-} from '../dom.mjs';
+} from '../../dom.mjs';
 import { dismissPendingErrors, checkForErrors } from '../core/errors.mjs';
 import { waitForStable, waitForCondition } from '../core/wait.mjs';
 import { highlight, unhighlight } from '../recording/highlight.mjs';
@@ -16,7 +16,7 @@ import {
   detectNewForm as helperDetectNewForm,
 } from '../core/helpers.mjs';
 // pasteText + getFormState live in browser.mjs.
-import { pasteText, getFormState } from '../browser.mjs';
+import { pasteText, getFormState } from '../../browser.mjs';
 
 /**
  * Scan visible grid rows for a text match (exact → startsWith → includes).
