@@ -213,4 +213,37 @@ export default async function({
   await step('cleanup: close LongDoc', async () => {
     await closeForm({ save: false });
   });
+
+  // ── Dynamic list (not tabular section): hasMore.above/below + reveal-loop ──
+  // Группа БольшойСписок справочника Номенклатура содержит 60 элементов —
+  // заведомо больше окна виртуализации. В отличие от табчасти LongDoc, это
+  // ДИНАМИЧЕСКИЙ список: hasMore определяется через turn-кнопки vertButtonScroll.
+  await step('dyn-list setup: открыть Номенклатуру, развернуть БольшойСписок', async () => {
+    await navigateSection('Склад');
+    await openCommand('Номенклатура');
+    await clickElement('БольшойСписок', { dblclick: true });
+    await wait(1);
+    const t = await readTable();
+    log(`БольшойСписок: shown=${t.shown} hasMore=${JSON.stringify(t.hasMore)}`);
+    // Зашли в группу — наверху списка, сверху ничего, снизу есть (60 > окна).
+    assert.equal(t.hasMore?.above, false, 'в начале списка above=false');
+    assert.equal(t.hasMore?.below, true, '60 элементов > окна → below=true');
+  });
+
+  await step('dyn-list reveal: scroll:true находит Позиция 055 в длинном дин-списке', async () => {
+    const res = await clickElement(
+      { row: { 'Наименование': 'Позиция 055' }, column: 'Наименование' },
+      { scroll: true }
+    );
+    log(`reveal clicked: ${JSON.stringify(res.clicked)}`);
+    assert.equal(res.clicked?.kind, 'gridCell', 'reveal-loop на дин-списке нашёл строку');
+    // После прокрутки к концовой части списка сверху уже есть скрытые строки.
+    const t = await readTable();
+    log(`after reveal: hasMore=${JSON.stringify(t.hasMore)}`);
+    assert.equal(t.hasMore?.above, true, 'после прокрутки вниз above=true');
+  });
+
+  await step('dyn-list cleanup: закрыть список', async () => {
+    await closeForm();
+  });
 }
