@@ -1,4 +1,4 @@
-// web-test cli/commands/test v1.0 — regression test runner
+// web-test cli/commands/test v1.1 — regression test runner
 // Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname, basename, relative } from 'path';
@@ -96,9 +96,15 @@ export async function cmdTest(rawArgs) {
   if (opts.format === 'junit' && !opts.report) {
     die('--format=junit requires --report=path.xml');
   }
+  // `--report=-` means "machine report to stdout" (Unix `-` convention).
+  // Only meaningful for streamable formats (json/junit); allure is a directory.
+  const reportToStdout = opts.report === '-';
+  if (reportToStdout && opts.format === 'allure') {
+    die('--report=- (stdout) is not valid with --format=allure: allure emits a directory of files, not a single stream. Use --report-dir=<dir> instead.');
+  }
   const reportDir = opts.reportDir
     ? resolve(opts.reportDir)
-    : (opts.report ? dirname(resolve(opts.report)) : testDir);
+    : (opts.report && !reportToStdout ? dirname(resolve(opts.report)) : testDir);
   if (opts.screenshot !== 'off') {
     try { mkdirSync(reportDir, { recursive: true }); } catch {}
   }
@@ -154,8 +160,9 @@ export async function cmdTest(rawArgs) {
     hooks = await import('file:///' + hooksPath.replace(/\\/g, '/'));
   }
 
-  // Console header
-  const W = process.stderr;
+  // Human-readable report goes to stdout (test-runner convention: jest/pytest/playwright).
+  // In `--report -` mode the machine JSON/XML takes over stdout, so progress moves to stderr.
+  const W = reportToStdout ? process.stderr : process.stdout;
   W.write(`\nweb-test -- ${url}\n`);
   W.write(`Running ${filtered.length} tests from ${relative(process.cwd(), testDir).replace(/\\/g, '/') || '.'}/\n\n`);
 
@@ -418,13 +425,14 @@ export async function cmdTest(rawArgs) {
     summary: { total: results.length, passed: passCount, failed: failCount, skipped: skipCount },
     tests: results,
   };
-  out(report);
-
   if (opts.format === 'allure') {
     writeAllure(results, reportDir, severityIndex);
     syncAllureExtras(testDir, reportDir);
   } else if (opts.format === 'junit') {
-    writeFileSync(resolve(opts.report), buildJUnit(report, testDir));
+    if (reportToStdout) process.stdout.write(buildJUnit(report, testDir) + '\n');
+    else writeFileSync(resolve(opts.report), buildJUnit(report, testDir));
+  } else if (reportToStdout) {
+    out(report);
   } else if (opts.report) {
     writeFileSync(resolve(opts.report), JSON.stringify(report, null, 2));
   }

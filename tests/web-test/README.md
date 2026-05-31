@@ -31,7 +31,8 @@ Exit code: 0 = все прошли, 1 = есть падения.
 | `--bail` | Остановиться на первой ошибке |
 | `--retry=N` | Перепрогон упавших тестов N раз |
 | `--timeout=ms` | Таймаут одного теста (default 30000) |
-| `--report=path` | Сохранить отчёт в файл |
+| `--report=path` | Сохранить машинный отчёт в файл |
+| `--report=-` | Машинный отчёт в stdout (прогресс → stderr) |
 | `--format=json\|allure\|junit` | Формат отчёта |
 | `--report-dir=path` | Корень для Allure/JUnit артефактов |
 | `--screenshot=on-failure\|every-step\|off` | Когда снимать скриншоты |

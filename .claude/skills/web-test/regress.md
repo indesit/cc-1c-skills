@@ -366,10 +366,11 @@ node $RUN test tests/<app-name>/ --tags=smoke                          # by tag 
 node $RUN test tests/<app-name>/ --grep='накладн'                      # by name regex
 node $RUN test tests/<app-name>/ --bail --retry=1                      # stop on first fail, allow 1 retry
 node $RUN test tests/<app-name>/ --report=allure-results --format=allure --report-dir=allure-results
+node $RUN test tests/<app-name>/ --report=-                            # machine JSON to stdout, progress to stderr
 node $RUN test tests/<app-name>/ -- --rebuild-stand                    # after `--` → hookArgs
 ```
 
-Default report is JSON when `--report=…` is given. Allure needs `--format=allure` + a directory. JUnit similarly with `--format=junit`.
+**Output contract.** `test` behaves like a test runner: by default the human report (with the summary as the last line) goes to **stdout** — read the tail of stdout + exit code. The machine report is opt-in via `--report`: `--report=path` writes it to a file (default JSON; XML for `--format=junit`), `--report=-` writes it to stdout while progress moves to stderr. Allure needs `--format=allure` + a directory (`-` is invalid for allure). For detailed triage use `--report=path` or `--report=-`. **In `--report=-` mode never use `2>&1`** — it merges stderr progress into the stdout JSON. (In the default mode there is no JSON in stdout, so `… | tail` is safe.)
 
 ### Allure static config — `_allure/`
 

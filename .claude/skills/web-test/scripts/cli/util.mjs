@@ -1,4 +1,4 @@
-// web-test cli/util v1.0 — generic helpers for CLI commands
+// web-test cli/util v1.1 — generic helpers for CLI commands
 // Source: https://github.com/Nikolay-Shirokov/cc-1c-skills
 
 export function out(obj) {
@@ -100,7 +100,8 @@ Options for test:
   --bail                   Stop on first failure
   --retry=N                Retry failed tests N times
   --timeout=ms             Per-test timeout (default: 30000)
-  --report=path            Write JSON report to file
+  --report=path            Write machine report (JSON/JUnit) to file
+  --report=-               Write machine report to stdout (progress moves to stderr)
   --report-dir=path        Directory for screenshots and other artifacts
   --screenshot=mode        on-failure (default) | every-step | off
   --format=fmt             json (default) | allure | junit
