@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# log-analyze v1.0 — Analyze the 1C event log (журнал регистрации, old text format:
+# log-analyze v1.1 — Analyze the 1C event log (журнал регистрации, old text format:
 # 1Cv8.lgf dictionary + daily *.lgp files). Read-only.
 
 import argparse
@@ -155,10 +155,14 @@ def main():
     by_severity, by_event, by_user = Counter(), Counter(), Counter()
     details = []
     files_used = 0
-    for lgp in sorted(glob.glob(os.path.join(log_dir, "*.lgp"))):
-        day = os.path.basename(lgp)[:8]
-        if day < lo[:8] or day > hi[:8]:
-            continue
+    all_lgps = sorted(glob.glob(os.path.join(log_dir, "*.lgp")))
+    # Always include the last .lgp file: when log rotation stopped, all newer events
+    # accumulate in it regardless of the date in its filename.
+    files_to_scan = [lgp for lgp in all_lgps if lo[:8] <= os.path.basename(lgp)[:8] <= hi[:8]]
+    if all_lgps and all_lgps[-1] not in files_to_scan:
+        files_to_scan.append(all_lgps[-1])
+        files_to_scan.sort()
+    for lgp in files_to_scan:
         files_used += 1
         for ts, fields in iter_records(lgp):
             if ts < lo or ts > hi or len(fields) < 11:
