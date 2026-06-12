@@ -1080,6 +1080,8 @@ def build_param_fragment(parsed, indent):
     if parsed.get("autoDates"):
         param_name = parsed["name"]
         # Canonical БСП pattern: title + valueType + value + useRestriction + expression
+        expr_start = esc_xml("&" + param_name + ".\u0414\u0430\u0442\u0430\u041d\u0430\u0447\u0430\u043b\u0430")
+        expr_end = esc_xml("&" + param_name + ".\u0414\u0430\u0442\u0430\u041e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f")
         b_lines = [
             f"{i}<parameter>",
             f"{i}\t<name>\u0414\u0430\u0442\u0430\u041d\u0430\u0447\u0430\u043b\u0430</name>",
@@ -1089,7 +1091,7 @@ def build_param_fragment(parsed, indent):
             f"{i}\t</valueType>",
             f'{i}\t<value xsi:type="xs:dateTime">0001-01-01T00:00:00</value>',
             f"{i}\t<useRestriction>true</useRestriction>",
-            f"{i}\t<expression>{esc_xml('&' + param_name + '.\u0414\u0430\u0442\u0430\u041d\u0430\u0447\u0430\u043b\u0430')}</expression>",
+            f"{i}\t<expression>{expr_start}</expression>",
             f"{i}</parameter>",
         ]
         fragments.append("\n".join(b_lines))
@@ -1103,7 +1105,7 @@ def build_param_fragment(parsed, indent):
             f"{i}\t</valueType>",
             f'{i}\t<value xsi:type="xs:dateTime">0001-01-01T00:00:00</value>',
             f"{i}\t<useRestriction>true</useRestriction>",
-            f"{i}\t<expression>{esc_xml('&' + param_name + '.\u0414\u0430\u0442\u0430\u041e\u043a\u043e\u043d\u0447\u0430\u043d\u0438\u044f')}</expression>",
+            f"{i}\t<expression>{expr_end}</expression>",
             f"{i}</parameter>",
         ]
         fragments.append("\n".join(e_lines))
