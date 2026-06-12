@@ -61,6 +61,7 @@ param(
 
     [Parameter(Mandatory=$false)]
     [string]$Password,
+    [string]$PasswordEnv,
 
     [Parameter(Mandatory=$true)]
     [string]$InputFile,
@@ -120,6 +121,14 @@ try {
     }
 
     if ($UserName) { $arguments += "/N`"$UserName`"" }
+    if (-not $Password -and $PasswordEnv) {
+        foreach ($scope in 'Process', 'User', 'Machine') {
+            $Password = [Environment]::GetEnvironmentVariable($PasswordEnv, $scope)
+            if ($Password) { break }
+        }
+        if (-not $Password) { Write-Error "Environment variable $PasswordEnv is not set"; exit 1 }
+    }
+
     if ($Password) { $arguments += "/P`"$Password`"" }
 
     $arguments += "/LoadCfg", "`"$InputFile`""
@@ -137,7 +146,8 @@ try {
     $arguments += "/DisableStartupDialogs"
 
     # --- Execute ---
-    Write-Host "Running: 1cv8.exe $($arguments -join ' ')"
+    $masked = $arguments | ForEach-Object { if ($_ -like '/P"*') { '/P"********"' } else { $_ } }
+    Write-Host "Running: 1cv8.exe $($masked -join ' ')"
     $process = Start-Process -FilePath $V8Path -ArgumentList $arguments -NoNewWindow -Wait -PassThru
     $exitCode = $process.ExitCode
 

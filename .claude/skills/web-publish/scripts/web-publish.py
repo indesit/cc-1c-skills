@@ -59,6 +59,36 @@ def check_port_in_use(port):
     return None
 
 
+def resolve_password(password, password_env):
+    """Explicit -Password wins; else env var (process env, then HKCU/HKLM registry)."""
+    if password:
+        return password
+    if not password_env:
+        return ""
+    value = os.environ.get(password_env, "")
+    if not value:
+        try:
+            import winreg
+            for hive, path in (
+                (winreg.HKEY_CURRENT_USER, r"Environment"),
+                (winreg.HKEY_LOCAL_MACHINE,
+                 r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+            ):
+                try:
+                    with winreg.OpenKey(hive, path) as key:
+                        value = str(winreg.QueryValueEx(key, password_env)[0])
+                        if value:
+                            break
+                except OSError:
+                    continue
+        except ImportError:
+            pass
+    if not value:
+        print(f"Error: environment variable {password_env} is not set", file=sys.stderr)
+        sys.exit(1)
+    return value
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -69,11 +99,13 @@ def main():
     parser.add_argument('-InfoBaseRef', type=str, default='', help='Infobase name on server')
     parser.add_argument('-UserName', type=str, default='', help='1C user name')
     parser.add_argument('-Password', type=str, default='', help='1C password')
+    parser.add_argument("-PasswordEnv", default="", help="Env var holding the password")
     parser.add_argument('-AppName', type=str, default='', help='Publication name (default: from infobase folder name)')
     parser.add_argument('-ApachePath', type=str, default='', help='Apache root (default: tools\\apache24)')
     parser.add_argument('-Port', type=int, default=8081, help='Port (default: 8081)')
     parser.add_argument('-Manual', action='store_true', help='Do not download Apache — only check and give instructions')
     args = parser.parse_args()
+    args.Password = resolve_password(args.Password, args.PasswordEnv)
 
     # --- Resolve V8Path ---
     v8_path = args.V8Path

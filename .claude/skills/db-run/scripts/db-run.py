@@ -27,6 +27,36 @@ def resolve_v8path(v8path):
     return v8path
 
 
+def resolve_password(password, password_env):
+    """Explicit -Password wins; else env var (process env, then HKCU/HKLM registry)."""
+    if password:
+        return password
+    if not password_env:
+        return ""
+    value = os.environ.get(password_env, "")
+    if not value:
+        try:
+            import winreg
+            for hive, path in (
+                (winreg.HKEY_CURRENT_USER, r"Environment"),
+                (winreg.HKEY_LOCAL_MACHINE,
+                 r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"),
+            ):
+                try:
+                    with winreg.OpenKey(hive, path) as key:
+                        value = str(winreg.QueryValueEx(key, password_env)[0])
+                        if value:
+                            break
+                except OSError:
+                    continue
+        except ImportError:
+            pass
+    if not value:
+        print(f"Error: environment variable {password_env} is not set", file=sys.stderr)
+        sys.exit(1)
+    return value
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -40,10 +70,12 @@ def main():
     parser.add_argument("-InfoBaseRef", default="")
     parser.add_argument("-UserName", default="")
     parser.add_argument("-Password", default="")
+    parser.add_argument("-PasswordEnv", default="")
     parser.add_argument("-Execute", default="")
     parser.add_argument("-CParam", default="")
     parser.add_argument("-URL", default="")
     args = parser.parse_args()
+    args.Password = resolve_password(args.Password, args.PasswordEnv)
 
     v8path = resolve_v8path(args.V8Path)
 
@@ -85,7 +117,8 @@ def main():
     arguments.append("/DisableStartupDialogs")
 
     # --- Execute (background, no wait) ---
-    print(f"Running: 1cv8.exe {' '.join(arguments)}")
+    masked = ["/P********" if a.startswith("/P") and len(a) > 2 else a for a in arguments]
+    print(f"Running: 1cv8.exe {' '.join(masked)}")
     subprocess.Popen([v8path] + arguments)
     print("1C:Enterprise launched")
 

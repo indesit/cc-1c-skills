@@ -64,6 +64,7 @@ param(
 
     [Parameter(Mandatory=$false)]
     [string]$Password,
+    [string]$PasswordEnv,
 
     [Parameter(Mandatory=$false)]
     [string]$Execute,
@@ -115,6 +116,14 @@ if ($InfoBaseServer -and $InfoBaseRef) {
 }
 
 if ($UserName) { $argString += " /N`"$UserName`"" }
+if (-not $Password -and $PasswordEnv) {
+    foreach ($scope in 'Process', 'User', 'Machine') {
+        $Password = [Environment]::GetEnvironmentVariable($PasswordEnv, $scope)
+        if ($Password) { break }
+    }
+    if (-not $Password) { Write-Error "Environment variable $PasswordEnv is not set"; exit 1 }
+}
+
 if ($Password) { $argString += " /P`"$Password`"" }
 
 # --- Optional params ---
@@ -140,6 +149,7 @@ if ($URL) {
 $argString += " /DisableStartupDialogs"
 
 # --- Execute (background, no wait) ---
-Write-Host "Running: 1cv8.exe $argString"
+$maskedArgString = $argString -replace '/P"[^"]*"', '/P"********"'
+Write-Host "Running: 1cv8.exe $maskedArgString"
 Start-Process -FilePath $V8Path -ArgumentList $argString
 Write-Host "1C:Enterprise launched" -ForegroundColor Green

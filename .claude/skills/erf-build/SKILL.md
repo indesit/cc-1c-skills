@@ -55,6 +55,7 @@ powershell.exe -NoProfile -File "${CLAUDE_SKILL_DIR}/../epf-build/scripts/epf-bu
 | `-InfoBaseRef <имя>` | * | Имя базы на сервере |
 | `-UserName <имя>` | нет | Имя пользователя |
 | `-Password <пароль>` | нет | Пароль |
+| `-PasswordEnv <имя>` | нет | Имя переменной окружения с паролем — вместо `-Password` (ищется в process, затем user/machine реестре) |
 | `-SourceFile <путь>` | да | Путь к корневому XML-файлу исходников |
 | `-OutputFile <путь>` | да | Путь к выходному ERF-файлу |
 

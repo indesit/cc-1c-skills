@@ -54,6 +54,7 @@ powershell.exe -NoProfile -File "${CLAUDE_SKILL_DIR}/../epf-dump/scripts/epf-dum
 | `-InfoBaseRef <имя>` | * | Имя базы на сервере |
 | `-UserName <имя>` | нет | Имя пользователя |
 | `-Password <пароль>` | нет | Пароль |
+| `-PasswordEnv <имя>` | нет | Имя переменной окружения с паролем — вместо `-Password` (ищется в process, затем user/machine реестре) |
 | `-InputFile <путь>` | да | Путь к ERF-файлу |
 | `-OutputDir <путь>` | да | Каталог для выгрузки исходников |
 | `-Format <формат>` | нет | `Hierarchical` (по умолч.) / `Plain` |

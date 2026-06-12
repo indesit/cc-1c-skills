@@ -48,6 +48,7 @@ powershell.exe -NoProfile -File "${CLAUDE_SKILL_DIR}/scripts/db-dump-cf.ps1" <п
 | `-InfoBaseRef <имя>` | * | Имя базы на сервере |
 | `-UserName <имя>` | нет | Имя пользователя |
 | `-Password <пароль>` | нет | Пароль |
+| `-PasswordEnv <имя>` | нет | Имя переменной окружения с паролем — вместо `-Password` (ищется в process, затем user/machine реестре) |
 | `-OutputFile <путь>` | да | Путь к выходному CF-файлу |
 | `-Extension <имя>` | нет | Выгрузить расширение |
 | `-AllExtensions` | нет | Выгрузить все расширения |

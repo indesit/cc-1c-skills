@@ -68,6 +68,7 @@ param(
 
     [Parameter(Mandatory=$false)]
     [string]$Password,
+    [string]$PasswordEnv,
 
     [Parameter(Mandatory=$false)]
     [string]$AppName,
@@ -245,6 +246,14 @@ if ($InfoBaseServer -and $InfoBaseRef) {
     $ibParts += "File=&quot;$InfoBasePath&quot;"
 }
 if ($UserName) { $ibParts += "Usr=&quot;$UserName&quot;" }
+if (-not $Password -and $PasswordEnv) {
+    foreach ($scope in 'Process', 'User', 'Machine') {
+        $Password = [Environment]::GetEnvironmentVariable($PasswordEnv, $scope)
+        if ($Password) { break }
+    }
+    if (-not $Password) { Write-Error "Environment variable $PasswordEnv is not set"; exit 1 }
+}
+
 if ($Password) { $ibParts += "Pwd=&quot;$Password&quot;" }
 $ibString = ($ibParts -join ";") + ";"
 
