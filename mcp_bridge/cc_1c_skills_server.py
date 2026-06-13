@@ -231,8 +231,10 @@ def _python_command(script: Path, args: list[str]) -> list[str]:
     return [sys.executable, str(script), *args]
 
 
-def _run_command(cmd: list[str], *, cwd: str | Path | None = None, timeout: int = 120) -> dict[str, Any]:
+def _run_command(cmd: list[str], *, cwd: str | Path | None = None, timeout: int = 120,
+                 env: dict[str, str] | None = None) -> dict[str, Any]:
     redacted_cmd = _redact_command(cmd)
+    run_env = {**os.environ, **env} if env else None
     try:
         proc = subprocess.run(
             cmd,
@@ -242,6 +244,7 @@ def _run_command(cmd: list[str], *, cwd: str | Path | None = None, timeout: int 
             timeout=timeout,
             encoding="utf-8",
             errors="replace",
+            env=run_env,
         )
         stdout = _truncate(_redact_text(proc.stdout))
         stderr = _truncate(_redact_text(proc.stderr))
@@ -525,6 +528,128 @@ def cc1c_srv_sessions(
     cmd = _powershell_command(script, args)
     meta = {"action": action, "infobase": target_infobase, "db": _redact_db(db_info) if db_info else None}
     return _run_command(cmd, cwd=ctx.root, timeout=timeout) if execute else _preview(cmd, meta)
+
+
+@mcp.tool()
+def cc1c_cf_check(
+    workspace: str | None = None,
+    project_file: str | None = None,
+    db: str | None = None,
+    mode: Literal["config", "modules", "all"] = "all",
+    extension: str | None = None,
+    execute: bool = True,
+    timeout: int = 600,
+) -> dict[str, Any]:
+    """Read-only platform check of a 1C configuration/modules via cf-check.ps1 (/CheckConfig, /CheckModules).
+
+    Connects to the infobase through Designer. Non-zero exit means problems were found.
+    """
+    ctx = _load_project(workspace=workspace, project_file=project_file)
+    db_info = _resolve_db(ctx, db)
+    script = _skill_script("cf-check", "cf-check.ps1")
+    args = [*_v8_arg(ctx), *_connection_args(db_info), "-Mode", mode]
+    if extension:
+        args += ["-Extension", extension]
+    cmd = _powershell_command(script, args)
+    meta = {"db": _redact_db(db_info), "mode": mode, "extension": extension}
+    return _run_command(cmd, cwd=ctx.root, timeout=timeout) if execute else _preview(cmd, meta)
+
+
+@mcp.tool()
+def cc1c_log_analyze(
+    log_dir: str | None = None,
+    infobase: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    severity: str = "E,W",
+    top: int = 10,
+    details: int = 20,
+    json_report: str | None = None,
+    execute: bool = True,
+    timeout: int = 300,
+) -> dict[str, Any]:
+    """Analyze the 1C event log (old .lgf/.lgp format) via the log-analyze engine. Read-only.
+
+    Auto-discovers the log directory under srvinfo if log_dir is omitted.
+    """
+    script = _skill_script("log-analyze", "log-analyze.py")
+    args = ["-Severity", severity, "-Top", str(top), "-Details", str(details)]
+    if log_dir:
+        args += ["-LogDir", log_dir]
+    if infobase:
+        args += ["-Infobase", infobase]
+    if date_from:
+        args += ["-From", date_from]
+    if date_to:
+        args += ["-To", date_to]
+    if json_report:
+        args += ["-Json", json_report]
+    cmd = _python_command(script, args)
+    meta = {"log_dir": log_dir, "severity": severity}
+    # log-analyze prints Cyrillic; the engine reconfigures stdout itself, but force utf-8 for safety.
+    return _run_command(cmd, cwd=_repo_root(), timeout=timeout, env={"PYTHONUTF8": "1"}) if execute else _preview(cmd, meta)
+
+
+@mcp.tool()
+def cc1c_cfe_compat(
+    extension_path: str,
+    config_path: str | None = None,
+    workspace: str | None = None,
+    project_file: str | None = None,
+    db: str | None = None,
+    json_report: str | None = None,
+    strict: bool = False,
+    execute: bool = True,
+    timeout: int = 300,
+) -> dict[str, Any]:
+    """Static compatibility check of a 1C extension against a configuration dump via cfe-compat.ps1.
+
+    config_path defaults to the resolved DB's configSrc. Read-only static analysis.
+    Non-zero exit means INCOMPATIBLE (errors found).
+    """
+    cfg = config_path
+    if not cfg:
+        ctx = _load_project(workspace=workspace, project_file=project_file)
+        db_info = _resolve_db(ctx, db)
+        cfg = db_info.get("configSrc")
+        if not cfg:
+            raise BridgeError("config_path required: resolved DB has no configSrc")
+    script = _skill_script("cfe-compat", "cfe-compat.ps1")
+    args = ["-ExtensionPath", extension_path, "-ConfigPath", cfg]
+    if json_report:
+        args += ["-Json", json_report]
+    if strict:
+        args += ["-Strict"]
+    cmd = _powershell_command(script, args)
+    meta = {"extension_path": extension_path, "config_path": cfg, "strict": strict}
+    return _run_command(cmd, cwd=_repo_root(), timeout=timeout) if execute else _preview(cmd, meta)
+
+
+@mcp.tool()
+def cc1c_v8unpack(
+    mode: Literal["extract", "build"],
+    source: str,
+    destination: str,
+    descent: str | None = None,
+    version: str | None = None,
+    execute: bool = False,
+    timeout: int = 600,
+) -> dict[str, Any]:
+    """Unpack (extract) or repack (build) a 1C CF/CFE/EPF binary via `python -m v8unpack`, no platform needed.
+
+    extract: source=<.cf/.cfe/.epf>, destination=<sources dir>.
+    build:   source=<sources dir>,   destination=<.cf/.cfe/.epf>.
+    Defaults to preview (execute=False) since it writes a large tree / a binary file.
+    Always runs with PYTHONUTF8=1 (v8unpack crashes on Cyrillic without it on Windows).
+    """
+    flag = "-E" if mode == "extract" else "-B"
+    cmd = [sys.executable, "-m", "v8unpack", flag, source, destination]
+    if descent:
+        cmd += ["--descent", descent]
+    if version:
+        cmd += ["--version", version]
+    meta = {"mode": mode, "source": source, "destination": destination}
+    return _run_command(cmd, timeout=timeout, env={"PYTHONUTF8": "1"}) if execute else _preview(cmd, meta)
 
 
 def main() -> None:

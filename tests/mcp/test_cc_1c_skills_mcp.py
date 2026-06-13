@@ -128,5 +128,65 @@ class TestCc1cSkillsMcpBridge(unittest.TestCase):
         )
 
 
+    def test_cf_check_preview_builds_connection_and_mode(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_project(root)
+
+            result = bridge.cc1c_cf_check(workspace=str(root), mode="modules", execute=False)
+
+            cmd = result["command"]
+            self.assertTrue(result["ok"])
+            self.assertFalse(result["execute"])
+            self.assertIn("-Mode", cmd)
+            self.assertIn("modules", cmd)
+            self.assertIn("-InfoBaseServer", cmd)
+            self.assertIn("-PasswordEnv", cmd)
+            self.assertIn("BAF_BAS_PASSWORD", cmd)
+            self.assertNotIn("do-not-leak", json.dumps(result, ensure_ascii=False))
+
+    def test_log_analyze_preview_builds_args(self):
+        result = bridge.cc1c_log_analyze(log_dir="C:/logs", severity="E", top=3, execute=False)
+
+        cmd = result["command"]
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["execute"])
+        self.assertIn("-Severity", cmd)
+        self.assertIn("E", cmd)
+        self.assertIn("-LogDir", cmd)
+        self.assertIn("C:/logs", cmd)
+        self.assertIn("log-analyze.py", " ".join(cmd))
+
+    def test_cfe_compat_preview_defaults_config_to_configsrc(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_project(root)
+
+            result = bridge.cc1c_cfe_compat(
+                extension_path="src/my-ext", workspace=str(root), execute=False
+            )
+
+            cmd = result["command"]
+            self.assertTrue(result["ok"])
+            self.assertFalse(result["execute"])
+            self.assertIn("-ExtensionPath", cmd)
+            self.assertIn("-ConfigPath", cmd)
+            self.assertTrue(result["config_path"].endswith("src/baf-config-dump"))
+
+    def test_v8unpack_defaults_to_preview_and_builds_command(self):
+        result = bridge.cc1c_v8unpack(
+            mode="extract", source="ext.cfe", destination="out_dir"
+        )
+
+        cmd = result["command"]
+        self.assertTrue(result["ok"])
+        self.assertFalse(result["execute"])
+        self.assertIn("-m", cmd)
+        self.assertIn("v8unpack", cmd)
+        self.assertIn("-E", cmd)
+        self.assertIn("ext.cfe", cmd)
+        self.assertIn("out_dir", cmd)
+
+
 if __name__ == "__main__":
     unittest.main()

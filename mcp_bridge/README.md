@@ -46,6 +46,10 @@ After changing MCP config, restart Hermes/gateway or start a new session so tool
 - `cc1c_db_backup` — preview or execute `db-backup.ps1`; `execute=false` by default.
 - `cc1c_srv_info` — read-only cluster overview via `srv-info.ps1`.
 - `cc1c_srv_sessions` — list or terminate sessions via `srv-sessions.ps1`; termination requires `confirmation_token='TERMINATE_SESSIONS'`.
+- `cc1c_cf_check` — read-only platform check (`/CheckConfig`, `/CheckModules`) via `cf-check.ps1`.
+- `cc1c_log_analyze` — analyze the 1C event log (`.lgf`/`.lgp`) via the log-analyze engine; read-only.
+- `cc1c_cfe_compat` — static extension-vs-config compatibility check via `cfe-compat.ps1`; `config_path` defaults to the DB's `configSrc`.
+- `cc1c_v8unpack` — unpack/build CF/CFE/EPF via `python -m v8unpack` (no platform); `execute=false` by default, always runs with `PYTHONUTF8=1`.
 
 Hermes will register them with the MCP prefix as e.g. `mcp_cc_1c_skills_cc1c_project_info`.
 
