@@ -2,9 +2,17 @@
 
 This directory exposes a small MCP server for Hermes Agent. It wraps selected existing `cc-1c-skills` scripts as structured MCP tools while preserving the current script implementations.
 
+## Setup
+
+Install the Python dependency (once, from the repository root):
+
+```bash
+python -m pip install -r mcp_bridge/requirements.txt
+```
+
 ## Server
 
-Run from this repository root:
+Run from the repository root:
 
 ```bash
 python mcp_bridge/cc_1c_skills_server.py
