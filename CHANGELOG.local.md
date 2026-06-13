@@ -2,6 +2,27 @@
 
 Локальний журнал змін поверх upstream `Nikolay-Shirokov/cc-1c-skills`. Теги `local-vYYYY.MM.DD` позначають стани, перевірені на тестовому сервері й придатні до розгортання на прод.
 
+## local-v2026.06.13
+
+Інтеграція з Hermes (MCP), збагачення зовнішніми скілами, виправлення.
+
+### Hermes MCP bridge
+- `mcp_bridge/` — MCP-сервер, що віддає Hermes 6 структурованих tools поверх перевірених скриптів: `project_info`, `cf_drift`, `db_dump_xml`, `db_backup`, `srv_info`, `srv_sessions`. Безпека: редакція секретів, `execute=false` (preview) за замовчуванням для важких/мутуючих, terminate сеансів — лише з `confirmation_token='TERMINATE_SESSIONS'`.
+- `mcp_bridge/requirements.txt` — `mcp==1.26.0` (збігається з venv Hermes).
+- Перевірено: e2e проти живого сервера (`project_info`, `srv_info`), 5/5 юніт-тестів, без витоку пароля.
+
+### Нові/імпортовані скіли (з Desko77/claude-code-skills-1c, MIT)
+- `rules/` — 25 знаннєвих BSL-правил (стандарти, антипатерни, оптимізація запитів, патерни розширень/форм, тестування). `rules/README.md` позначає 7 правил, що покладаються на відсутні в нас MCP-сервери. Атрибуція: `rules/LICENSE.Desko77.md`.
+- `v8unpack-cf` — розпаковка/збірка CF/CFE/EPF без платформи (`v8unpack` 1.2.6). Додано вимогу `PYTHONUTF8=1` (інакше падає на кирилиці на Windows). Перевірено на `КассирАвтоКасса.cfe` (168 файлів).
+
+### Виправлення
+- `fix(log-analyze)`: сканує останній `.lgp`, коли ротація журналу зупинена (інакше нові події не видно). На тест-копії ротація замерзла 2024-01-19.
+
+### Інфраструктура
+- Власний форк `indesit/cc-1c-skills` (remote `fork`, HTTPS). `origin` лишається upstream.
+- `docs/ROADMAP.md` — план: практичне тестування + розвиток MCP / Hermes native tools.
+- web-publish поставив portable Apache 2.4.68 у `tools/apache24` (база на `http://localhost:8081/bas`).
+
 ## local-v2026.06.12
 
 Перший консолідований реліз інфраструктурних скілів (Фази 1–3) + промоушн-комплект.
