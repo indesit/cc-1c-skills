@@ -17,7 +17,8 @@ param(
     [string]$Password,
     [string]$PasswordEnv,
     [string]$SqlServer = 'localhost',
-    [string]$SqlDatabase
+    [string]$SqlDatabase,
+    [switch]$Compress
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,13 +47,15 @@ if ($Mode -eq 'sql') {
 
     $dbEsc = $SqlDatabase -replace ']', ']]'
     $fileEsc = $OutputFile -replace "'", "''"
-    $query = "BACKUP DATABASE [$dbEsc] TO DISK = N'$fileEsc' WITH COPY_ONLY, INIT, CHECKSUM, STATS = 10"
+    $withOpts = 'COPY_ONLY, INIT, CHECKSUM, STATS = 10'
+    if ($Compress) { $withOpts += ', COMPRESSION' }
+    $query = "BACKUP DATABASE [$dbEsc] TO DISK = N'$fileEsc' WITH $withOpts"
     Write-Host "Running: sqlcmd -S $SqlServer -E -b -Q `"$query`""
     & sqlcmd -S $SqlServer -E -b -Q $query
     $code = $LASTEXITCODE
     if ($code -eq 0 -and (Test-Path $OutputFile)) {
         Write-Host "Backup completed: $OutputFile ($([math]::Round((Get-Item $OutputFile).Length / 1MB, 1)) MB)"
-        Write-Manifest -BackupFile $OutputFile -Extra @{ sqlServer = $SqlServer; sqlDatabase = $SqlDatabase; copyOnly = $true }
+        Write-Manifest -BackupFile $OutputFile -Extra @{ sqlServer = $SqlServer; sqlDatabase = $SqlDatabase; copyOnly = $true; compression = [bool]$Compress }
     } else {
         Write-Error "SQL backup failed (code $code)"
     }

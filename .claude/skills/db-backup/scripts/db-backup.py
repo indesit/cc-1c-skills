@@ -87,6 +87,8 @@ def main():
     parser.add_argument("-PasswordEnv", default="", help="Env var holding the password")
     parser.add_argument("-SqlServer", default="localhost")
     parser.add_argument("-SqlDatabase", default="")
+    parser.add_argument("-Compress", action="store_true",
+                        help="Add WITH COMPRESSION (smaller .bak; useful when the disk is tight)")
     args = parser.parse_args()
     args.Password = resolve_password(args.Password, args.PasswordEnv)
 
@@ -103,15 +105,19 @@ def main():
             sys.exit(1)
         db_esc = args.SqlDatabase.replace("]", "]]")
         file_esc = args.OutputFile.replace("'", "''")
+        with_opts = "COPY_ONLY, INIT, CHECKSUM, STATS = 10"
+        if args.Compress:
+            with_opts += ", COMPRESSION"
         query = (f"BACKUP DATABASE [{db_esc}] TO DISK = N'{file_esc}' "
-                 f"WITH COPY_ONLY, INIT, CHECKSUM, STATS = 10")
+                 f"WITH {with_opts}")
         print(f'Running: sqlcmd -S {args.SqlServer} -E -b -Q "{query}"')
         result = subprocess.run(["sqlcmd", "-S", args.SqlServer, "-E", "-b", "-Q", query])
         if result.returncode == 0 and os.path.isfile(args.OutputFile):
             size_mb = os.path.getsize(args.OutputFile) / 1024 / 1024
             print(f"Backup completed: {args.OutputFile} ({size_mb:.1f} MB)")
             write_manifest("sql", args.OutputFile,
-                           {"sqlServer": args.SqlServer, "sqlDatabase": args.SqlDatabase, "copyOnly": True})
+                           {"sqlServer": args.SqlServer, "sqlDatabase": args.SqlDatabase,
+                            "copyOnly": True, "compression": bool(args.Compress)})
         else:
             print(f"SQL backup failed (code {result.returncode})", file=sys.stderr)
         sys.exit(result.returncode)

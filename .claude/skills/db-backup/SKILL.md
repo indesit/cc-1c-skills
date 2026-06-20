@@ -45,6 +45,7 @@ powershell.exe -NoProfile -File .claude/skills/db-backup/scripts/db-backup.ps1 <
 | `-PasswordEnv <имя>` | нет | Переменная окружения с паролем — вместо `-Password` |
 | `-SqlServer <адрес>` | нет | Сервер MS SQL (по умолчанию `localhost`, Windows-аутентификация) |
 | `-SqlDatabase <имя>` | sql | Имя базы данных MS SQL |
+| `-Compress` | нет | (sql) добавить `WITH COMPRESSION` — меньший `.bak`; полезно, когда на диске мало места (типично сжатие 3–4×) |
 
 > `*` — для `dt`: либо `-InfoBasePath`, либо `-InfoBaseServer` + `-InfoBaseRef`
 
